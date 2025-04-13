@@ -1,8 +1,9 @@
 // constants.js or at the top of your script
-const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.onrender.com/api'; // Updated to Render URL
-const TMDB_API_KEY = '4e8b127b76ea53ce61591bb9c3c372e0'; // Your new TMDB API key
+const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.onrender.com/api';
+const TMDB_API_KEY = '4e8b127b76ea53ce61591bb9c3c372e0';
 
 let movieData = {};
+let fontSize = 16; // Declare fontSize globally
 
 // Fetch movies from TMDB with category
 async function fetchMovies(category) {
@@ -71,6 +72,38 @@ async function fetchMovieTrailer(movieId) {
         console.error(`Error fetching trailer for movie ID ${movieId}:`, error);
         return null;
     }
+}
+
+// Load movies (for both index.html and dashboard.html)
+function loadMovies(containerId, movieList) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    const token = localStorage.getItem('token');
+    const isDashboard = document.getElementById('sidebar'); // Check if on dashboard
+
+    movieList.forEach(movie => {
+        const card = document.createElement('div');
+        card.className = 'movie-card';
+        card.innerHTML = `
+            <img src="${movie.img}" alt="${movie.title}">
+            <h3>${movie.title}</h3>
+            <p class="subtitle">${movie.subtitle}</p>
+            <div class="info">
+                <span>Rating:</span>
+                <span class="rating">${movie.rating}</span>
+            </div>
+            ${isDashboard ? `<p class="overview">${movie.overview}</p>` : ''}
+            <div class="buttons">
+                <button onclick="${token && isDashboard ? `addToWishlist('${movie.id}', '${movie.title}', '${movie.img}', '${movie.subtitle}', '${movie.rating}', '${movie.overview}')` : `promptLogin('${movie.id}', '${movie.title}', '${movie.img}', 'wishlist')`}"><i class="fas fa-heart"></i> Favorite</button>
+                <button onclick="${token && isDashboard ? `playTrailer('${movie.id}')` : `promptLogin('${movie.id}', '${movie.title}', '${movie.img}', 'trailer')`}"><i class="fas fa-play"></i> Trailer</button>
+                ${isDashboard ? `<button onclick="showMovieDetails('${movie.id}', '${movie.title}', '${movie.img}', '${movie.subtitle}', '${movie.rating}', '${movie.overview}')"><i class="fas fa-info-circle"></i> Details</button>` : `<button onclick="${token ? `navigateTo('dashboard.html')` : `promptLogin('${movie.id}', '${movie.title}', '${movie.img}', 'details')`}"><i class="fas fa-info"></i> Details</button>`}
+                ${isDashboard ? `<button onclick="showDownloadOptions('${movie.title}')"><i class="fas fa-download"></i> Download</button>` : ''}
+                ${isDashboard ? `<button onclick="shareMovie('${movie.id}', '${movie.title}')"><i class="fas fa-share"></i> Share</button>` : ''}
+            </div>
+        `;
+        container.appendChild(card);
+    });
 }
 
 // Initialize the page
@@ -172,6 +205,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Add event listeners for login and signup forms
     const loginForm = document.getElementById('loginForm');
     const signupForm = document.getElementById('signupForm');
+    const changePasswordForm = document.getElementById('changePasswordForm');
 
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
@@ -186,39 +220,47 @@ document.addEventListener('DOMContentLoaded', async () => {
             await signup();
         });
     }
+
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', async (e) => {
+            console.log("Changing password");
+            e.preventDefault();
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+            const token = localStorage.getItem('token');
+
+            if (newPassword !== confirmNewPassword) {
+                showAlert('New passwords do not match.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/change-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ currentPassword, newPassword })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    showAlert('Password changed successfully! Please log in again.', 'success');
+                    localStorage.removeItem('token');
+                    setTimeout(() => window.location.href = 'index.html', 2000);
+                    changePasswordForm.reset();
+                } else {
+                    showAlert(data.message || 'Failed to change password.', 'error');
+                }
+            } catch (error) {
+                console.error('Error changing password:', error);
+                showAlert('Failed to change password. Please try again later.', 'error');
+            }
+        });
+    }
 });
-
-// Load movies (for both index.html and dashboard.html)
-function loadMovies(containerId, movieList) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    container.innerHTML = '';
-    const token = localStorage.getItem('token');
-    const isDashboard = document.getElementById('sidebar'); // Check if on dashboard
-
-    movieList.forEach(movie => {
-        const card = document.createElement('div');
-        card.className = 'movie-card';
-        card.innerHTML = `
-            <img src="${movie.img}" alt="${movie.title}">
-            <h3>${movie.title}</h3>
-            <p class="subtitle">${movie.subtitle}</p>
-            <div class="info">
-                <span>Rating:</span>
-                <span class="rating">${movie.rating}</span>
-            </div>
-            ${isDashboard ? `<p class="overview">${movie.overview}</p>` : ''}
-            <div class="buttons">
-                <button onclick="${token && isDashboard ? `addToWishlist('${movie.id}', '${movie.title}', '${movie.img}', '${movie.subtitle}', '${movie.rating}', '${movie.overview}')` : `promptLogin('${movie.id}', '${movie.title}', '${movie.img}', 'wishlist')`}"><i class="fas fa-heart"></i> Favorite</button>
-                <button onclick="${token && isDashboard ? `playTrailer('${movie.id}')` : `promptLogin('${movie.id}', '${movie.title}', '${movie.img}', 'trailer')`}"><i class="fas fa-play"></i> Trailer</button>
-                ${isDashboard ? `<button onclick="showMovieDetails('${movie.id}', '${movie.title}', '${movie.img}', '${movie.subtitle}', '${movie.rating}', '${movie.overview}')"><i class="fas fa-info-circle"></i> Details</button>` : `<button onclick="${token ? `navigateTo('dashboard.html')` : `promptLogin('${movie.id}', '${movie.title}', '${movie.img}', 'details')`}"><i class="fas fa-info"></i> Details</button>`}
-                ${isDashboard ? `<button onclick="showDownloadOptions('${movie.title}')"><i class="fas fa-download"></i> Download</button>` : ''}
-                ${isDashboard ? `<button onclick="shareMovie('${movie.id}', '${movie.title}')"><i class="fas fa-share"></i> Share</button>` : ''}
-            </div>
-        `;
-        container.appendChild(card);
-    });
-}
 
 // Index.html: Search Movies
 async function searchMoviesIndex() {
@@ -446,6 +488,7 @@ function showSection(sectionId) {
     }
 }
 
+// Load user info
 async function loadUserInfo() {
     console.log("Loading user info");
     const token = localStorage.getItem('token');
@@ -489,19 +532,19 @@ async function loadUserInfo() {
             const watchLaterCountDisplay = document.getElementById('watchLaterCountDisplay');
 
             if (joinDateDisplay) {
-                joinDateDisplay.textContent = 'N/A'; // Adjust based on backend response
+                joinDateDisplay.textContent = data.joinDate ? new Date(data.joinDate).toLocaleDateString() : 'N/A';
             }
             const wishlistResponse = await fetch(`${BACKEND_URL}/wishlist`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const wishlistData = await wishlistResponse.json();
-            if (wishlistCountDisplay) wishlistCountDisplay.textContent = wishlistData.wishlist.length || 0;
+            if (wishlistCountDisplay) wishlistCountDisplay.textContent = wishlistData.wishlist?.length || 0;
 
             const watchLaterResponse = await fetch(`${BACKEND_URL}/watchlater`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const watchLaterData = await watchLaterResponse.json();
-            if (watchLaterCountDisplay) watchLaterCountDisplay.textContent = watchLaterData.watchLater.length || 0;
+            if (watchLaterCountDisplay) watchLaterCountDisplay.textContent = watchLaterData.watchLater?.length || 0;
         } else {
             console.error('Failed to load user info:', data.message);
             document.getElementById('sidebarUsername').textContent = 'User';
@@ -514,6 +557,7 @@ async function loadUserInfo() {
     }
 }
 
+// Set profile picture
 function setProfilePicture(event) {
     console.log("Setting profile picture");
     const file = event.target.files[0];
@@ -531,79 +575,57 @@ function setProfilePicture(event) {
     if (profilePic) profilePic.src = URL.createObjectURL(file);
     if (profilePicDisplay) profilePicDisplay.src = URL.createObjectURL(file);
 
-    // Force backend URL and pre-flight check
-    const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://boxdome-app.onrender.com'; // Updated to Render URL
-    console.log('Forced Backend URL:', backendUrl);
+    const formData = new FormData();
+    formData.append('profilePic', file);
 
-    fetch(`${backendUrl}/`, { method: 'HEAD' })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Server unreachable. Status: ${response.status}`);
+    fetch(`${BACKEND_URL}/update-profile-pic`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.message === 'Profile picture updated successfully') {
+            const newProfilePicUrl = data.profilePic;
+            console.log('New Profile Pic URL from server:', newProfilePicUrl);
+
+            if (profilePic) {
+                profilePic.src = `${newProfilePicUrl}?t=${new Date().getTime()}`;
+                profilePic.onload = () => console.log('Profile image loaded:', profilePic.src);
+                profilePic.onerror = () => {
+                    console.error('Profile image failed to load:', profilePic.src);
+                    showAlert('Failed to load new profile picture. Check server connection.', 'error');
+                    profilePic.src = 'https://via.placeholder.com/80';
+                };
             }
-            return true;
-        })
-        .catch(preFlightError => {
-            console.error('Pre-flight Check Failed:', preFlightError);
-            showAlert(`Server check failed: ${preFlightError.message}`, 'error');
-            if (profilePic) profilePic.src = 'https://via.placeholder.com/80';
-            if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80';
-            return false;
-        })
-        .then(isServerReachable => {
-            if (!isServerReachable) return;
+            if (profilePicDisplay) {
+                profilePicDisplay.src = `${newProfilePicUrl}?t=${new Date().getTime()}`;
+                profilePicDisplay.onload = () => console.log('Display image loaded:', profilePicDisplay.src);
+                profilePicDisplay.onerror = () => {
+                    console.error('Display image failed to load:', profilePicDisplay.src);
+                    showAlert('Failed to load new profile picture in sidebar.', 'error');
+                    profilePicDisplay.src = 'https://via.placeholder.com/80';
+                };
+            }
 
-            const formData = new FormData();
-            formData.append('profilePic', file);
-
-            fetch(`${backendUrl}/api/update-profile-pic`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.message === 'Profile picture updated successfully') {
-                    const newProfilePicUrl = data.profilePic;
-                    console.log('New Profile Pic URL from server:', newProfilePicUrl);
-
-                    if (profilePic) {
-                        profilePic.src = `${newProfilePicUrl}?t=${new Date().getTime()}`;
-                        profilePic.onload = () => console.log('Profile image loaded:', profilePic.src);
-                        profilePic.onerror = () => {
-                            console.error('Profile image failed to load:', profilePic.src);
-                            showAlert('Failed to load new profile picture. Check server connection.', 'error');
-                            profilePic.src = 'https://via.placeholder.com/80';
-                        };
-                    }
-                    if (profilePicDisplay) {
-                        profilePicDisplay.src = `${newProfilePicUrl}?t=${new Date().getTime()}`;
-                        profilePicDisplay.onload = () => console.log('Display image loaded:', profilePicDisplay.src);
-                        profilePicDisplay.onerror = () => {
-                            console.error('Display image failed to load:', profilePicDisplay.src);
-                            showAlert('Failed to load new profile picture in sidebar.', 'error');
-                            profilePicDisplay.src = 'https://via.placeholder.com/80';
-                        };
-                    }
-
-                    loadUserInfo().then(() => {
-                        showAlert('Profile picture updated successfully!', 'success');
-                    });
-                } else {
-                    throw new Error(data.message || 'Invalid response from server.');
-                }
-            })
-            .catch(error => {
-                console.error('Error uploading profile picture:', error);
-                showAlert(`Failed to update profile picture on server. ${error.message}`, 'error');
-                if (profilePic) profilePic.src = 'https://via.placeholder.com/80';
-                if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80';
+            loadUserInfo().then(() => {
+                showAlert('Profile picture updated successfully!', 'success');
             });
-        });
+        } else {
+            throw new Error(data.message || 'Invalid response from server.');
+        }
+    })
+    .catch(error => {
+        console.error('Error uploading profile picture:', error);
+        showAlert(`Failed to update profile picture on server. ${error.message}`, 'error');
+        if (profilePic) profilePic.src = 'https://via.placeholder.com/80';
+        if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80';
+    });
 }
 
 function toggleEditUsername() {
@@ -903,47 +925,6 @@ async function loadAdminPanel() {
     }
 }
 
-const changePasswordForm = document.getElementById('changePasswordForm');
-if (changePasswordForm) {
-    changePasswordForm.addEventListener('submit', async (e) => {
-        console.log("Changing password");
-        e.preventDefault();
-        const currentPassword = document.getElementById('currentPassword').value;
-        const newPassword = document.getElementById('newPassword').value;
-        const confirmNewPassword = document.getElementById('confirmNewPassword').value;
-        const token = localStorage.getItem('token');
-
-        if (newPassword !== confirmNewPassword) {
-            showAlert('New passwords do not match.', 'error');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${BACKEND_URL}/change-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ currentPassword, newPassword })
-            });
-
-            const data = await response.json();
-            if (response.ok) {
-                showAlert('Password changed successfully! Please log in again.', 'success');
-                localStorage.removeItem('token');
-                setTimeout(() => window.location.href = 'index.html', 2000);
-            } else {
-                showAlert(data.message || 'Failed to change password.', 'error');
-            }
-        } catch (error) {
-            console.error('Error changing password:', error);
-            showAlert('Failed to change password. Please try again later.', 'error');
-        }
-    });
-}
-
-let fontSize = 16;
 function changeFontSize(action) {
     console.log(`Changing font size: ${action}`);
     if (action === 'increase' && fontSize < 24) {
@@ -1181,7 +1162,7 @@ function scrollToSection(sectionId) {
     console.log(`Scrolling to section: ${sectionId}`);
     const section = document.getElementById(sectionId);
     if (section) {
-        const headerHeight = document.querySelector('header').offsetHeight;
+        const headerHeight = document.querySelector('header')?.offsetHeight || 0;
         const sectionPosition = section.getBoundingClientRect().top + window.scrollY - headerHeight;
         window.scrollTo({
             top: sectionPosition,
@@ -1408,4 +1389,4 @@ function showAlert(text, type) {
     }
     document.body.appendChild(alert);
     setTimeout(() => alert.remove(), 3000);
-} // Fixed truncation by adding closing bracket
+}
