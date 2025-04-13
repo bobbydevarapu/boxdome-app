@@ -1,11 +1,12 @@
 // constants.js or at the top of your script
 const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.onrender.com/api'; // Updated to Render URL
-const TMDB_API_KEY = '766a6c462b8e5bf3bdb6dde1050e1650'; // Replace with your TMDB API key
+const TMDB_API_KEY = '4e8b127b76ea53ce61591bb9c3c372e0'; // Your new TMDB API key
 
 let movieData = {};
 
 // Fetch movies from TMDB with category
 async function fetchMovies(category) {
+    console.log(`Fetching movies for ${category}`);
     const container = document.getElementById(`${category}Movies`);
     if (container) {
         container.innerHTML = '<p>Loading...</p>';
@@ -26,6 +27,7 @@ async function fetchMovies(category) {
         }
 
         const response = await fetch(url);
+        console.log(`Response for ${category}:`, response.status);
         if (!response.ok) {
             throw new Error(`Failed to fetch ${category} movies: ${response.statusText}`);
         }
@@ -73,6 +75,7 @@ async function fetchMovieTrailer(movieId) {
 
 // Initialize the page
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log("script.js loaded successfully");
     // Ensure the mobile menu is closed on page load (for index.html)
     const navLinks = document.getElementById('navLinks');
     if (navLinks) {
@@ -219,6 +222,7 @@ function loadMovies(containerId, movieList) {
 
 // Index.html: Search Movies
 async function searchMoviesIndex() {
+    console.log("Searching movies on index.html");
     const query = document.querySelector('.search-container input').value.trim();
     const searchResultsSection = document.getElementById('searchResults');
     const searchResultsList = document.getElementById('searchResults');
@@ -295,6 +299,7 @@ async function searchMoviesIndex() {
 
 // Dashboard: Search Movies
 async function searchMovies() {
+    console.log("Searching movies on dashboard");
     const query = document.getElementById('searchInput').value.trim();
     const searchResultsSection = document.getElementById('searchResults');
     const searchResultsList = document.getElementById('searchResultsList');
@@ -371,6 +376,7 @@ function navigateTo(url) {
 
 // Dashboard: Toggle Sidebar
 function toggleSidebar() {
+    console.log("Toggling sidebar");
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.querySelector('.main-content');
     const isMobile = window.innerWidth <= 768;
@@ -385,6 +391,7 @@ function toggleSidebar() {
 
 // Dashboard: Navigate to Dashboard (Home Section)
 function navigateToDashboard() {
+    console.log("Navigating to dashboard");
     if (window.location.pathname.includes('dashboard.html')) {
         showSection('home');
         if (window.innerWidth <= 768) {
@@ -397,6 +404,7 @@ function navigateToDashboard() {
 
 // Dashboard: Show Section
 function showSection(sectionId) {
+    console.log(`Showing section: ${sectionId}`);
     const sections = document.querySelectorAll('.content-section');
     sections.forEach(section => {
         section.style.display = 'none';
@@ -439,6 +447,7 @@ function showSection(sectionId) {
 }
 
 async function loadUserInfo() {
+    console.log("Loading user info");
     const token = localStorage.getItem('token');
     if (!token) {
         setTimeout(() => window.location.href = 'index.html', 2000);
@@ -506,6 +515,7 @@ async function loadUserInfo() {
 }
 
 function setProfilePicture(event) {
+    console.log("Setting profile picture");
     const file = event.target.files[0];
     if (!file) return;
 
@@ -591,12 +601,13 @@ function setProfilePicture(event) {
                 console.error('Error uploading profile picture:', error);
                 showAlert(`Failed to update profile picture on server. ${error.message}`, 'error');
                 if (profilePic) profilePic.src = 'https://via.placeholder.com/80';
-                if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80');
+                if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80';
             });
         });
 }
 
 function toggleEditUsername() {
+    console.log("Toggling edit username");
     const usernameInput = document.getElementById('usernameInput');
     const saveUsernameBtn = document.getElementById('saveUsernameBtn');
     const editBtn = document.querySelector('#userProfile .edit-btn');
@@ -614,6 +625,7 @@ function toggleEditUsername() {
 }
 
 async function saveUsername() {
+    console.log("Saving username");
     const newUsername = document.getElementById('usernameInput').value.trim();
     const token = localStorage.getItem('token');
 
@@ -648,6 +660,7 @@ async function saveUsername() {
 }
 
 async function loadWishlist() {
+    console.log("Loading wishlist");
     const wishlistContainer = document.getElementById('wishlistMovies');
     wishlistContainer.innerHTML = '<p>Loading...</p>';
 
@@ -701,6 +714,7 @@ async function loadWishlist() {
 }
 
 async function removeFromWishlist(movieId) {
+    console.log(`Removing movie ${movieId} from wishlist`);
     const token = localStorage.getItem('token');
     if (!token) {
         showAlert('Please log in to remove from wishlist.', 'error');
@@ -730,6 +744,7 @@ async function removeFromWishlist(movieId) {
 }
 
 async function loadWatchLater() {
+    console.log("Loading watch later");
     const watchLaterContainer = document.getElementById('watchLaterMovies');
     watchLaterContainer.innerHTML = '<p>Loading...</p>';
 
@@ -783,6 +798,7 @@ async function loadWatchLater() {
 }
 
 async function addToWatchLater(movieId, title, img, subtitle, rating, overview) {
+    console.log(`Adding ${title} to watch later`);
     const token = localStorage.getItem('token');
     if (!token) {
         promptLogin(movieId, title, img, 'watchlater');
@@ -814,6 +830,7 @@ async function addToWatchLater(movieId, title, img, subtitle, rating, overview) 
 }
 
 async function removeFromWatchLater(movieId) {
+    console.log(`Removing movie ${movieId} from watch later`);
     const token = localStorage.getItem('token');
     if (!token) {
         showAlert('Please log in to remove from watch later.', 'error');
@@ -843,6 +860,7 @@ async function removeFromWatchLater(movieId) {
 }
 
 async function loadAdminPanel() {
+    console.log("Loading admin panel");
     const userList = document.getElementById('userList');
     userList.innerHTML = '<p>Loading...</p>';
 
@@ -888,6 +906,7 @@ async function loadAdminPanel() {
 const changePasswordForm = document.getElementById('changePasswordForm');
 if (changePasswordForm) {
     changePasswordForm.addEventListener('submit', async (e) => {
+        console.log("Changing password");
         e.preventDefault();
         const currentPassword = document.getElementById('currentPassword').value;
         const newPassword = document.getElementById('newPassword').value;
@@ -926,6 +945,7 @@ if (changePasswordForm) {
 
 let fontSize = 16;
 function changeFontSize(action) {
+    console.log(`Changing font size: ${action}`);
     if (action === 'increase' && fontSize < 24) {
         fontSize += 2;
     } else if (action === 'decrease' && fontSize > 12) {
@@ -936,6 +956,7 @@ function changeFontSize(action) {
 }
 
 function closeSettingsCard() {
+    console.log("Closing settings card");
     const settingsCard = document.getElementById('settingsCard');
     settingsCard.classList.add('closing');
     setTimeout(() => {
@@ -945,6 +966,7 @@ function closeSettingsCard() {
 }
 
 function saveSettings() {
+    console.log("Saving settings");
     const theme = document.getElementById('themeSelect').value;
     localStorage.setItem('theme', theme);
     localStorage.setItem('fontSize', fontSize);
@@ -953,6 +975,7 @@ function saveSettings() {
 }
 
 function applySettings() {
+    console.log("Applying settings");
     const savedTheme = localStorage.getItem('theme') || 'system';
     const savedFontSize = localStorage.getItem('fontSize') || 16;
     fontSize = parseInt(savedFontSize);
@@ -981,12 +1004,14 @@ function applySettings() {
 }
 
 function logout() {
+    console.log("Logging out");
     localStorage.removeItem('token');
     showAlert('Logout successful!', 'success');
     setTimeout(() => window.location.href = 'index.html', 2000);
 }
 
 async function addToWishlist(movieId, title, img, subtitle, rating, overview) {
+    console.log(`Adding ${title} to wishlist`);
     const token = localStorage.getItem('token');
     if (!token) {
         promptLogin(movieId, title, img, 'wishlist');
@@ -1018,6 +1043,7 @@ async function addToWishlist(movieId, title, img, subtitle, rating, overview) {
 }
 
 async function playTrailer(movieId) {
+    console.log(`Playing trailer for movie ${movieId}`);
     const trailerKey = await fetchMovieTrailer(movieId);
     if (trailerKey) {
         const modal = document.getElementById('trailerModal');
@@ -1030,6 +1056,7 @@ async function playTrailer(movieId) {
 }
 
 function showMovieDetails(id, title, img, subtitle, rating, overview) {
+    console.log(`Showing details for ${title}`);
     const modal = document.getElementById('detailsModal');
     const detailsContainer = document.getElementById('movieDetails');
     detailsContainer.innerHTML = `
@@ -1043,6 +1070,7 @@ function showMovieDetails(id, title, img, subtitle, rating, overview) {
 }
 
 function shareMovie(movieId, title) {
+    console.log(`Sharing ${title}`);
     const shareLink = `https://www.themoviedb.org/movie/${movieId}`;
     navigator.clipboard.writeText(shareLink).then(() => {
         showAlert(`Link to "${title}" copied to clipboard!`, 'success');
@@ -1053,6 +1081,7 @@ function shareMovie(movieId, title) {
 }
 
 function showDownloadOptions(movieTitle) {
+    console.log(`Showing download options for ${movieTitle}`);
     const modal = document.getElementById('downloadOptionsModal');
     const titleElement = document.getElementById('downloadModalTitle');
     titleElement.textContent = `Download "${movieTitle}"`;
@@ -1060,43 +1089,51 @@ function showDownloadOptions(movieTitle) {
 }
 
 function showDownloadOptionsComingSoon() {
+    console.log("Showing download options coming soon");
     const modal = document.getElementById('comingSoonModal');
     modal.style.display = 'flex';
 }
 
 function showComingSoon() {
+    console.log("Showing coming soon");
     const modal = document.getElementById('comingSoonModal');
     modal.style.display = 'flex';
 }
 
 function closeModal() {
+    console.log("Closing trailer modal");
     const modal = document.getElementById('trailerModal');
     modal.style.display = 'none';
     document.getElementById('trailerPlayer').innerHTML = '';
 }
 
 function closeDetailsModal() {
+    console.log("Closing details modal");
     const modal = document.getElementById('detailsModal');
     modal.style.display = 'none';
     document.getElementById('movieDetails').innerHTML = '';
 }
 
 function closeDownloadModal() {
+    console.log("Closing download modal");
     const modal = document.getElementById('downloadOptionsModal');
     modal.style.display = 'none';
 }
 
 function closeComingSoonModal() {
+    console.log("Closing coming soon modal");
     const modal = document.getElementById('comingSoonModal');
     modal.style.display = 'none';
 }
 
 function promptLogin(movieId, title, img, action) {
+    console.log(`Prompting login for ${action}`);
     localStorage.setItem('pendingAction', JSON.stringify({ movieId, title, img, action }));
     openAuthModal('login');
 }
 
 function showMoreMovies(category) {
+    console.log(`Showing more movies for ${category}`);
     const container = document.getElementById(`${category}Movies`);
     const moreBtn = document.querySelector(`#${category} .more-btn`);
     const isExpanded = container.classList.contains('expanded');
@@ -1114,6 +1151,7 @@ function showMoreMovies(category) {
 }
 
 function toggleMenu() {
+    console.log("Toggling menu");
     const navLinks = document.getElementById('navLinks');
     const isMobile = window.innerWidth <= 768;
 
@@ -1140,6 +1178,7 @@ function toggleMenu() {
 }
 
 function scrollToSection(sectionId) {
+    console.log(`Scrolling to section: ${sectionId}`);
     const section = document.getElementById(sectionId);
     if (section) {
         const headerHeight = document.querySelector('header').offsetHeight;
@@ -1159,10 +1198,12 @@ function scrollToSection(sectionId) {
 }
 
 function scrollToTop() {
+    console.log("Scrolling to top");
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function refreshPage() {
+    console.log("Refreshing page");
     if (window.location.pathname.includes('index.html')) {
         window.location.reload();
     } else if (window.location.pathname.includes('dashboard.html')) {
@@ -1171,6 +1212,7 @@ function refreshPage() {
 }
 
 function refreshToHome() {
+    console.log("Refreshing to home");
     if (window.location.pathname.includes('dashboard.html')) {
         showSection('home');
     } else {
@@ -1179,6 +1221,7 @@ function refreshToHome() {
 }
 
 function openAuthModal(type) {
+    console.log(`Opening auth modal for ${type}`);
     const modal = document.getElementById('authModal');
     const loginForm = document.getElementById('loginForm');
     const signupForm = document.getElementById('signupForm');
@@ -1192,6 +1235,7 @@ function openAuthModal(type) {
 }
 
 function closeAuthModal() {
+    console.log("Closing auth modal");
     const modal = document.getElementById('authModal');
     if (modal) {
         modal.style.display = 'none';
@@ -1199,6 +1243,7 @@ function closeAuthModal() {
 }
 
 function showSignup() {
+    console.log("Showing signup form");
     const loginForm = document.getElementById('loginForm');
     const signupForm = document.getElementById('signupForm');
     if (loginForm && signupForm) {
@@ -1208,6 +1253,7 @@ function showSignup() {
 }
 
 function showLogin() {
+    console.log("Showing login form");
     const loginForm = document.getElementById('loginForm');
     const signupForm = document.getElementById('signupForm');
     if (loginForm && signupForm) {
@@ -1217,6 +1263,7 @@ function showLogin() {
 }
 
 async function login() {
+    console.log("Attempting login");
     const loginUsername = document.getElementById('loginUsername');
     const loginPassword = document.getElementById('loginPassword');
     const authMessage = document.getElementById('authMessage');
@@ -1283,6 +1330,7 @@ async function login() {
 }
 
 async function signup() {
+    console.log("Attempting signup");
     const signupUsername = document.getElementById('signupUsername');
     const signupEmail = document.getElementById('signupEmail');
     const signupPassword = document.getElementById('signupPassword');
@@ -1336,6 +1384,7 @@ async function signup() {
 }
 
 function showAlert(text, type) {
+    console.log(`Showing alert: ${text}, type: ${type}`);
     const alert = document.createElement('div');
     alert.className = `alert ${type}`;
     alert.textContent = text;
@@ -1359,4 +1408,4 @@ function showAlert(text, type) {
     }
     document.body.appendChild(alert);
     setTimeout(() => alert.remove(), 3000);
-}
+} // Fixed truncation by adding closing bracket

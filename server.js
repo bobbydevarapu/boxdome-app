@@ -32,7 +32,7 @@ if (process.env.NODE_ENV !== 'production') {
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:5000', 'https://boxdome-app.onrender.com'], // Updated to include Render URL
+  origin: process.env.NODE_ENV === 'production' ? 'https://boxdome-app.onrender.com' : 'http://localhost:5000',
   credentials: true
 }));
 app.use(express.static(path.join(__dirname, 'Frontend')));
@@ -49,32 +49,51 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Ensure uploads directory exists
+// Ensure uploads directory exists with error handling
 const fs = require('fs');
 const ensureUploadsDir = (req, res, next) => {
-  if (!fs.existsSync('./uploads')) {
-    fs.mkdirSync('./uploads');
+  try {
+    if (!fs.existsSync('./uploads')) {
+      fs.mkdirSync('./uploads', { recursive: true });
+      logger.info('Created uploads directory');
+    }
+    next();
+  } catch (err) {
+    logger.error('Failed to create uploads directory:', { message: err.message, stack: err.stack });
+    return res.status(500).json({ message: 'Server error creating uploads directory', error: err.message });
   }
-  next();
 };
 
-// MongoDB connection (removed deprecated options)
+// MongoDB connection with reconnection logic
 const MONGODB_URI = process.env.MONGODB_URI;
 let isMongoConnected = false;
 
-mongoose.connect(MONGODB_URI)
-  .then(() => {
+const connectMongo = () => {
+  mongoose.connect(MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  }).then(() => {
     console.log('MongoDB connected successfully to:', MONGODB_URI);
     isMongoConnected = true;
-  })
-  .catch(err => {
+  }).catch(err => {
     logger.error('MongoDB connection error:', {
       message: err.message,
       stack: err.stack,
       code: err.code
     });
     isMongoConnected = false;
+    // Retry connection after 5 seconds
+    setTimeout(connectMongo, 5000);
   });
+
+  mongoose.connection.on('disconnected', () => {
+    logger.warn('MongoDB disconnected, attempting to reconnect...');
+    isMongoConnected = false;
+    setTimeout(connectMongo, 5000);
+  });
+};
+
+connectMongo();
 
 // User Schema
 const userSchema = new mongoose.Schema({
@@ -137,7 +156,7 @@ const validateUserInput = (req, res, next) => {
 };
 
 const checkMongoConnection = (req, res, next) => {
-  if (!isMongoConnected) return res.status(503).json({ message: 'Database unavailable' });
+  if (!isMongoConnected) return res.status(503).json({ message: 'Database unavailable, please try again later' });
   next();
 };
 
@@ -174,7 +193,7 @@ app.post('/api/login', checkMongoConnection, async (req, res) => {
   }
 });
 
-app.get('/api/user', authenticateToken, async (req, res) => {
+app.get('/api/user', authenticateToken, checkMongoConnection, async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -185,7 +204,7 @@ app.get('/api/user', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/update-profile-pic', authenticateToken, ensureUploadsDir, upload.single('profilePic'), async (req, res) => {
+app.post('/api/update-profile-pic', authenticateToken, ensureUploadsDir, upload.single('profilePic'), checkMongoConnection, async (req, res) => {
   const profilePic = req.file ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` : req.body.profilePic;
   if (!profilePic) return res.status(400).json({ message: 'Profile picture required' });
   try {
@@ -201,7 +220,7 @@ app.post('/api/update-profile-pic', authenticateToken, ensureUploadsDir, upload.
   }
 });
 
-app.post('/api/update-profile', authenticateToken, async (req, res) => {
+app.post('/api/update-profile', authenticateToken, checkMongoConnection, async (req, res) => {
   const { username, email } = req.body;
   if (!username || !email) return res.status(400).json({ message: 'Username and email required' });
   if (!/^[a-zA-Z0-9]+$/.test(username)) return res.status(400).json({ message: 'Username must be alphanumeric' });
@@ -221,7 +240,7 @@ app.post('/api/update-profile', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/change-password', authenticateToken, async (req, res) => {
+app.post('/api/change-password', authenticateToken, checkMongoConnection, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   if (!currentPassword || !newPassword) return res.status(400).json({ message: 'Current and new passwords required' });
   if (newPassword.length < 6) return res.status(400).json({ message: 'New password must be 6+ characters' });
@@ -240,7 +259,7 @@ app.post('/api/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/wishlist', authenticateToken, async (req, res) => {
+app.post('/api/wishlist', authenticateToken, checkMongoConnection, async (req, res) => {
   const { movieId, movieTitle, movieImg } = req.body;
   if (!movieId || !movieTitle || !movieImg) return res.status(400).json({ message: 'Movie details required' });
   try {
@@ -255,7 +274,7 @@ app.post('/api/wishlist', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/wishlist', authenticateToken, async (req, res) => {
+app.get('/api/wishlist', authenticateToken, checkMongoConnection, async (req, res) => {
   try {
     const wishlist = await Wishlist.find({ userId: req.userId });
     res.json({ wishlist });
@@ -265,7 +284,7 @@ app.get('/api/wishlist', authenticateToken, async (req, res) => {
   }
 });
 
-app.delete('/api/wishlist', authenticateToken, async (req, res) => {
+app.delete('/api/wishlist', authenticateToken, checkMongoConnection, async (req, res) => {
   const { movieId } = req.body;
   if (!movieId) return res.status(400).json({ message: 'Movie ID required' });
   try {
@@ -277,7 +296,7 @@ app.delete('/api/wishlist', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/watchlater', authenticateToken, async (req, res) => {
+app.post('/api/watchlater', authenticateToken, checkMongoConnection, async (req, res) => {
   const { movieId, movieTitle, movieImg } = req.body;
   if (!movieId || !movieTitle || !movieImg) return res.status(400).json({ message: 'Movie details required' });
   try {
@@ -292,7 +311,7 @@ app.post('/api/watchlater', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/watchlater', authenticateToken, async (req, res) => {
+app.get('/api/watchlater', authenticateToken, checkMongoConnection, async (req, res) => {
   try {
     const watchLater = await WatchLater.find({ userId: req.userId });
     res.json({ watchLater });
@@ -302,7 +321,7 @@ app.get('/api/watchlater', authenticateToken, async (req, res) => {
   }
 });
 
-app.delete('/api/watchlater', authenticateToken, async (req, res) => {
+app.delete('/api/watchlater', authenticateToken, checkMongoConnection, async (req, res) => {
   const { movieId } = req.body;
   if (!movieId) return res.status(400).json({ message: 'Movie ID required' });
   try {
@@ -314,7 +333,7 @@ app.delete('/api/watchlater', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/contact', async (req, res) => {
+app.post('/api/contact', checkMongoConnection, async (req, res) => {
   const { username, email, message } = req.body;
   if (!username || !email || !message) return res.status(400).json({ message: 'All fields required' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: 'Invalid email' });
@@ -330,11 +349,24 @@ app.post('/api/contact', async (req, res) => {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'Frontend', 'index.html')));
 app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, 'Frontend', 'dashboard.html')));
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'Frontend', 'index.html')));
+app.get('*', (req, res) => {
+  if (req.accepts('html')) {
+    res.sendFile(path.join(__dirname, 'Frontend', 'index.html'));
+  } else {
+    res.status(404).json({ message: 'Not found' });
+  }
+});
 
 app.use((err, req, res, next) => {
-  logger.error('Server error:', { message: err.message, stack: err.stack });
-  res.status(500).json({ message: 'Something went wrong', error: err.message });
+  logger.error('Server error:', {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    body: req.body,
+    headers: req.headers
+  });
+  res.status(500).json({ message: 'Something went wrong', error: process.env.NODE_ENV === 'development' ? err.message : undefined });
 });
 
 const PORT = process.env.PORT || 5000;
