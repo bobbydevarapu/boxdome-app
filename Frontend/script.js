@@ -1,6 +1,6 @@
 // constants.js or at the top of your script
-const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.onrender.com/api'; // Updated to Render URL
-const TMDB_API_KEY = '4e8b127b76ea53ce61591bb9c3c372e0'; // Your new TMDB API key
+const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.onrender.com/api';
+const TMDB_API_KEY = '4e8b127b76ea53ce61591bb9c3c372e0'; // Your TMDB API key
 
 let movieData = {};
 
@@ -29,7 +29,10 @@ async function fetchMovies(category) {
             throw new Error(`Invalid category: ${category}`);
         }
 
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            mode: 'cors',
+            credentials: 'omit'
+        });
         console.log(`Response for ${category}:`, response.status, response.statusText);
         if (!response.ok) {
             throw new Error(`Failed to fetch ${category} movies: ${response.statusText}`);
@@ -65,7 +68,10 @@ async function fetchMovies(category) {
 async function fetchMovieTrailer(movieId) {
     console.log(`Fetching trailer for movie ID ${movieId}`);
     try {
-        const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}&language=en-US`);
+        const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}&language=en-US`, {
+            mode: 'cors',
+            credentials: 'omit'
+        });
         console.log(`Trailer response for ${movieId}:`, response.status, response.statusText);
         if (!response.ok) {
             throw new Error(`Failed to fetch trailer: ${response.statusText}`);
@@ -107,6 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 loadMovies(`${category}Movies`, movieData[category].slice(0, 4));
             } catch (error) {
                 console.error(`Failed to load ${category} movies:`, error);
+                loadMovies(`${category}Movies`, []); // Load empty to show error message
             }
         }
     }
@@ -149,7 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     showAlert('Message sent successfully!', 'success');
                     contactForm.reset();
                 } else {
-                    showAlert('Failed to send message. Please try again later.', 'error');
+                    showAlert(data.message || 'Failed to send message. Please try again later.', 'error');
                 }
             } catch (error) {
                 console.error('Error sending contact message:', error);
@@ -211,7 +218,7 @@ function loadMovies(containerId, movieList) {
     const isDashboard = document.getElementById('sidebar'); // Check if on dashboard
 
     if (movieList.length === 0) {
-        container.innerHTML = '<p>No movies available.</p>';
+        container.innerHTML = '<p>No movies available. Check console for errors.</p>';
         return;
     }
 
@@ -263,7 +270,10 @@ async function searchMoviesIndex() {
     }
 
     try {
-        const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`);
+        const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`, {
+            mode: 'cors',
+            credentials: 'omit'
+        });
         const movies = await response.json();
 
         if (response.ok) {
@@ -338,7 +348,10 @@ async function searchMovies() {
     }
 
     try {
-        const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`);
+        const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`, {
+            mode: 'cors',
+            credentials: 'omit'
+        });
         const movies = await response.json();
 
         if (response.ok) {
@@ -450,6 +463,7 @@ function showSection(sectionId) {
                     loadMovies(`${category}Movies`, movieData[category].slice(0, 4));
                 }).catch(error => {
                     console.error(`Failed to reload ${category} movies:`, error);
+                    loadMovies(`${category}Movies`, []); // Show error message
                 });
             }
         });
@@ -546,7 +560,7 @@ function setProfilePicture(event) {
     if (profilePicDisplay) profilePicDisplay.src = URL.createObjectURL(file);
 
     // Force backend URL and pre-flight check
-    const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://boxdome-app.onrender.com'; // Updated to Render URL
+    const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://boxdome-app.onrender.com';
     console.log('Forced Backend URL:', backendUrl);
 
     fetch(`${backendUrl}/`, { method: 'HEAD' })
@@ -581,7 +595,7 @@ function setProfilePicture(event) {
                 return response.json();
             })
             .then(data => {
-                if (data.message === 'Profile picture updated successfully') {
+                if (data.message === 'Profile picture updated') {
                     const newProfilePicUrl = data.profilePic;
                     console.log('New Profile Pic URL from server:', newProfilePicUrl);
 
@@ -1306,51 +1320,15 @@ function openAuthModal(type) {
         loginForm.style.display = type === 'login' ? 'block' : 'none';
         signupForm.style.display = type === 'signup' ? 'block' : 'none';
     } else {
-        console.error('Auth modal elements not found');
-    }
-}
-
-function closeAuthModal() {
-    console.log("Closing auth modal");
-    const modal = document.getElementById('authModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-function showSignup() {
-    console.log("Showing signup form");
-    const loginForm = document.getElementById('loginForm');
-    const signupForm = document.getElementById('signupForm');
-    if (loginForm && signupForm) {
-        loginForm.style.display = 'none';
-        signupForm.style.display = 'block';
-    }
-}
-
-function showLogin() {
-    console.log("Showing login form");
-    const loginForm = document.getElementById('loginForm');
-    const signupForm = document.getElementById('signupForm');
-    if (loginForm && signupForm) {
-        loginForm.style.display = 'block';
-        signupForm.style.display = 'none';
+        console.error('Auth modal, login form, or signup form not found');
+        showAlert('Authentication modal or forms missing. Please check your HTML.', 'error');
     }
 }
 
 async function login() {
-    console.log("Attempting login");
-    const loginUsername = document.getElementById('loginUsername');
-    const loginPassword = document.getElementById('loginPassword');
-    const authMessage = document.getElementById('authMessage');
-
-    if (!loginUsername || !loginPassword) {
-        showAlert('Login form elements are missing.', 'error');
-        return;
-    }
-
-    const username = loginUsername.value.trim();
-    const password = loginPassword.value.trim();
+    console.log("Logging in");
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
 
     if (!username || !password) {
         showAlert('Please fill out all fields.', 'error');
@@ -1363,72 +1341,46 @@ async function login() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
-
         const data = await response.json();
-        console.log('Login response:', { status: response.status, data });
-
         if (response.ok) {
             localStorage.setItem('token', data.token);
             showAlert('Login successful!', 'success');
             closeAuthModal();
 
+            // Handle pending action after login
             const pendingAction = JSON.parse(localStorage.getItem('pendingAction'));
             if (pendingAction) {
                 const { movieId, title, img, action } = pendingAction;
-                try {
-                    if (action === 'wishlist') {
-                        await addToWishlist(movieId, title, img, `${new Date().getFullYear()} • Genre`, 'N/A', 'No overview available.');
-                    } else if (action === 'trailer') {
-                        await playTrailer(movieId);
-                    } else if (action === 'details') {
-                        navigateTo('dashboard.html');
-                    } else if (action === 'watchlater') {
-                        await addToWatchLater(movieId, title, img, `${new Date().getFullYear()} • Genre`, 'N/A', 'No overview available.');
-                    }
-                } catch (actionError) {
-                    console.error(`Failed to execute pending action ${action}:`, actionError);
-                    showAlert(`Failed to perform ${action} action. Please try again.`, 'error');
-                }
                 localStorage.removeItem('pendingAction');
+                if (action === 'wishlist') {
+                    addToWishlist(movieId, title, img, `${new Date().getFullYear()} • Genre`, 'N/A', 'No overview available.');
+                } else if (action === 'trailer') {
+                    playTrailer(movieId);
+                } else if (action === 'watchlater') {
+                    addToWatchLater(movieId, title, img, `${new Date().getFullYear()} • Genre`, 'N/A', 'No overview available.');
+                } else if (action === 'details') {
+                    navigateTo('dashboard.html');
+                }
             } else {
                 navigateTo('dashboard.html');
             }
         } else {
-            if (authMessage) {
-                authMessage.textContent = data.message || 'Invalid credentials or server error';
-            }
             showAlert(data.message || 'Login failed. Please try again.', 'error');
         }
     } catch (error) {
-        console.error('Network error during login:', error);
-        showAlert('Unable to connect to the server. Please check your network and try again.', 'error');
+        console.error('Error during login:', error);
+        showAlert('Login failed. Please try again later.', 'error');
     }
 }
 
 async function signup() {
-    console.log("Attempting signup");
-    const signupUsername = document.getElementById('signupUsername');
-    const signupEmail = document.getElementById('signupEmail');
-    const signupPassword = document.getElementById('signupPassword');
-    const confirmPassword = document.getElementById('confirmPassword');
-    const signupMessage = document.getElementById('signupMessage');
+    console.log("Signing up");
+    const username = document.getElementById('signupUsername').value;
+    const email = document.getElementById('signupEmail').value;
+    const password = document.getElementById('signupPassword').value;
 
-    if (!signupUsername || !signupEmail || !signupPassword || !confirmPassword) {
-        showAlert('Signup form elements are missing.', 'error');
-        return;
-    }
-
-    const username = signupUsername.value.trim();
-    const email = signupEmail.value.trim();
-    const password = signupPassword.value.trim();
-    const confirmPass = confirmPassword.value.trim();
-
-    if (!username || !email || !password || !confirmPass) {
+    if (!username || !email || !password) {
         showAlert('Please fill out all fields.', 'error');
-        return;
-    }
-    if (password !== confirmPass) {
-        showAlert('Passwords do not match.', 'error');
         return;
     }
 
@@ -1438,50 +1390,36 @@ async function signup() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, email, password })
         });
-
         const data = await response.json();
-        console.log('Signup response:', { status: response.status, data });
-
         if (response.ok) {
-            showAlert('Sign up successful! Please log in.', 'success');
-            showLogin();
-            const signupForm = document.getElementById('signupForm');
-            if (signupForm) signupForm.reset(); // Clear form
+            localStorage.setItem('token', data.token);
+            showAlert('Signup successful! Redirecting to dashboard...', 'success');
+            closeAuthModal();
+            setTimeout(() => navigateTo('dashboard.html'), 2000);
         } else {
-            if (signupMessage) {
-                signupMessage.textContent = data.message || 'Signup failed. Please try again.';
-            }
             showAlert(data.message || 'Signup failed. Please try again.', 'error');
         }
     } catch (error) {
-        console.error('Network error during signup:', error);
-        showAlert('Unable to connect to the server. Please check your network and try again.', 'error');
+        console.error('Error during signup:', error);
+        showAlert('Signup failed. Please try again later.', 'error');
     }
 }
 
-function showAlert(text, type) {
-    console.log(`Showing alert: ${text}, type: ${type}`);
-    const alert = document.createElement('div');
-    alert.className = `alert ${type}`;
-    alert.textContent = text;
-    alert.style.position = 'fixed';
-    alert.style.top = '20px';
-    alert.style.right = '20px';
-    alert.style.padding = '10px 20px';
-    alert.style.borderRadius = '5px';
-    alert.style.zIndex = '1000';
-    alert.style.maxWidth = '300px';
-    alert.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-    if (type === 'success') {
-        alert.style.backgroundColor = '#4CAF50';
-        alert.style.color = '#fff';
-    } else if (type === 'error') {
-        alert.style.backgroundColor = '#f44336';
-        alert.style.color = '#fff';
-    } else {
-        alert.style.backgroundColor = '#2196F3';
-        alert.style.color = '#fff';
+function closeAuthModal() {
+    console.log("Closing auth modal");
+    const modal = document.getElementById('authModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('signupForm').style.display = 'none';
     }
-    document.body.appendChild(alert);
-    setTimeout(() => alert.remove(), 3000);
+}
+
+function showAlert(message, type) {
+    console.log(`Showing alert: ${message}, type: ${type}`);
+    const alertBox = document.createElement('div');
+    alertBox.className = `alert ${type}`;
+    alertBox.textContent = message;
+    document.body.appendChild(alertBox);
+    setTimeout(() => alertBox.remove(), 3000);
 }

@@ -32,7 +32,18 @@ if (process.env.NODE_ENV !== 'production') {
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? 'https://boxdome-app.onrender.com' : 'http://localhost:5000',
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'http://localhost:5000',
+      'https://boxdome-app.onrender.com',
+      undefined // Allow non-origin requests (e.g., curl)
+    ];
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.static(path.join(__dirname, 'Frontend')));
@@ -137,12 +148,12 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'No token provided' });
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'X7k9pM2q8vT3yJ5nL6xC4rH8wB9zA2dF1eG3jK7mP4oQ6sI0uR5tY==');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'X7k9pM2q8vT3yJ5nL6xC4rH8wB9zA2dF1eG3jK7mP4oQ6sI0uR5tY==', { ignoreExpiration: false });
     req.userId = decoded.userId;
     next();
   } catch (err) {
-    logger.error('Token verification error:', err);
-    res.status(401).json({ message: 'Invalid token' });
+    logger.error('Token verification error:', { message: err.message, stack: err.stack });
+    res.status(401).json({ message: err.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid token' });
   }
 };
 
@@ -172,7 +183,7 @@ app.post('/api/signup', checkMongoConnection, validateUserInput, async (req, res
     const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET || 'X7k9pM2q8vT3yJ5nL6xC4rH8wB9zA2dF1eG3jK7mP4oQ6sI0uR5tY==', { expiresIn: '1h' });
     res.status(201).json({ message: 'User created', token, user: { username, email, profilePic: newUser.profilePic } });
   } catch (err) {
-    logger.error('Signup error:', err);
+    logger.error('Signup error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -188,7 +199,7 @@ app.post('/api/login', checkMongoConnection, async (req, res) => {
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'X7k9pM2q8vT3yJ5nL6xC4rH8wB9zA2dF1eG3jK7mP4oQ6sI0uR5tY==', { expiresIn: '1h' });
     res.json({ message: 'Login successful', token, user: { username: user.username, email: user.email, profilePic: user.profilePic } });
   } catch (err) {
-    logger.error('Login error:', err);
+    logger.error('Login error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -199,7 +210,7 @@ app.get('/api/user', authenticateToken, checkMongoConnection, async (req, res) =
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json({ username: user.username, email: user.email, profilePic: user.profilePic });
   } catch (err) {
-    logger.error('User info error:', err);
+    logger.error('User info error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -215,7 +226,7 @@ app.post('/api/update-profile-pic', authenticateToken, ensureUploadsDir, upload.
     logger.info('Updated profilePic:', { profilePic });
     res.json({ message: 'Profile picture updated', profilePic });
   } catch (err) {
-    logger.error('Update profile picture error:', err);
+    logger.error('Update profile picture error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -235,7 +246,7 @@ app.post('/api/update-profile', authenticateToken, checkMongoConnection, async (
     await user.save();
     res.json({ message: 'Profile updated' });
   } catch (err) {
-    logger.error('Update profile error:', err);
+    logger.error('Update profile error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -254,7 +265,7 @@ app.post('/api/change-password', authenticateToken, checkMongoConnection, async 
     await user.save();
     res.json({ message: 'Password changed' });
   } catch (err) {
-    logger.error('Change password error:', err);
+    logger.error('Change password error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -269,7 +280,7 @@ app.post('/api/wishlist', authenticateToken, checkMongoConnection, async (req, r
     await wishlistItem.save();
     res.json({ message: 'Added to wishlist' });
   } catch (err) {
-    logger.error('Add to wishlist error:', err);
+    logger.error('Add to wishlist error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -279,7 +290,7 @@ app.get('/api/wishlist', authenticateToken, checkMongoConnection, async (req, re
     const wishlist = await Wishlist.find({ userId: req.userId });
     res.json({ wishlist });
   } catch (err) {
-    logger.error('Get wishlist error:', err);
+    logger.error('Get wishlist error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -291,7 +302,7 @@ app.delete('/api/wishlist', authenticateToken, checkMongoConnection, async (req,
     await Wishlist.deleteOne({ userId: req.userId, movieId });
     res.json({ message: 'Removed from wishlist' });
   } catch (err) {
-    logger.error('Remove from wishlist error:', err);
+    logger.error('Remove from wishlist error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -306,7 +317,7 @@ app.post('/api/watchlater', authenticateToken, checkMongoConnection, async (req,
     await watchLaterItem.save();
     res.json({ message: 'Added to watch later' });
   } catch (err) {
-    logger.error('Add to watch later error:', err);
+    logger.error('Add to watch later error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -316,7 +327,7 @@ app.get('/api/watchlater', authenticateToken, checkMongoConnection, async (req, 
     const watchLater = await WatchLater.find({ userId: req.userId });
     res.json({ watchLater });
   } catch (err) {
-    logger.error('Get watch later error:', err);
+    logger.error('Get watch later error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -328,7 +339,7 @@ app.delete('/api/watchlater', authenticateToken, checkMongoConnection, async (re
     await WatchLater.deleteOne({ userId: req.userId, movieId });
     res.json({ message: 'Removed from watch later' });
   } catch (err) {
-    logger.error('Remove from watch later error:', err);
+    logger.error('Remove from watch later error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -342,7 +353,7 @@ app.post('/api/contact', checkMongoConnection, async (req, res) => {
     await contactMessage.save();
     res.json({ message: 'Message sent' });
   } catch (err) {
-    logger.error('Contact form error:', err);
+    logger.error('Contact form error:', { message: err.message, stack: err.stack });
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
