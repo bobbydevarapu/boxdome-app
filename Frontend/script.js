@@ -57,19 +57,61 @@ async function fetchMovies(category) {
 
 // Fetch movie trailer from TMDB
 async function fetchMovieTrailer(movieId) {
+    console.log(`Fetching trailer for movie ID: ${movieId}`);
     try {
         const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}&language=en-US`);
-        const data = await response.json();
-        if (response.ok && data.results && data.results.length > 0) {
-            const trailer = data.results.find(video => video.type === 'Trailer' && video.site === 'YouTube') ||
-                           data.results.find(video => video.type === 'Teaser' && video.site === 'YouTube') ||
-                           data.results.find(video => video.site === 'YouTube');
-            return trailer ? trailer.key : null;
+        if (!response.ok) {
+            console.error(`TMDB API error for movie ${movieId}:`, response.status, response.statusText);
+            return null;
         }
+        const data = await response.json();
+        if (!data.results || data.results.length === 0) {
+            console.log(`No trailer results for movie ${movieId}`);
+            return null;
+        }
+        const trailer = data.results.find(video => video.type === 'Trailer' && video.site === 'YouTube') ||
+                       data.results.find(video => video.type === 'Teaser' && video.site === 'YouTube') ||
+                       data.results.find(video => video.site === 'YouTube');
+        if (trailer) {
+            console.log(`Found trailer key: ${trailer.key} for movie ${movieId}`);
+            return trailer.key;
+        }
+        console.log(`No suitable trailer found for movie ${movieId}`);
         return null;
     } catch (error) {
         console.error(`Error fetching trailer for movie ID ${movieId}:`, error);
         return null;
+    }
+}
+
+// Play movie trailer
+async function playTrailer(movieId) {
+    console.log(`Attempting to play trailer for movie ID: ${movieId}`);
+    const trailerKey = await fetchMovieTrailer(movieId);
+    const modal = document.getElementById('trailerModal');
+    const player = document.getElementById('trailerPlayer');
+
+    if (!modal || !player) {
+        console.error('Trailer modal or player element not found in DOM');
+        showAlert('Unable to open trailer. Modal elements missing.', 'error');
+        return;
+    }
+
+    if (trailerKey) {
+        player.innerHTML = `
+            <iframe 
+                src="https://www.youtube.com/embed/${trailerKey}?autoplay=1" 
+                title="Movie Trailer" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowfullscreen
+            ></iframe>
+        `;
+        modal.style.display = 'flex'; // Ensure modal is visible
+        console.log(`Trailer modal opened with key: ${trailerKey}`);
+    } else {
+        showAlert('Trailer not available for this movie.', 'info');
+        console.log(`No trailer available for movie ID: ${movieId}`);
     }
 }
 
