@@ -1,384 +1,337 @@
-require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
 const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { check, validationResult } = require('express-validator');
 const multer = require('multer');
-const winston = require('winston');
+const fs = require('fs');
+const { promisify } = require('util');
+const unlinkAsync = promisify(fs.unlink);
 
 const app = express();
-
-// Configure logger
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.File({ filename: 'error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'combined.log' })
-  ]
-});
-
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.simple()
-  }));
-}
+const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(express.json());
 app.use(cors({
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      'http://localhost:5000',
-      'https://boxdome-app.onrender.com',
-      undefined // Allow non-origin requests (e.g., curl)
-    ];
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
+    origin: ['http://localhost:3000', 'https://boxdome-app.onrender.com'],
+    credentials: true
 }));
-app.use(express.static(path.join(__dirname, 'Frontend')));
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Serve uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// File upload configuration with multer
-const storage = multer.diskStorage({
-  destination: './uploads/',
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  }
-});
-const upload = multer({ storage });
-
-// Ensure uploads directory exists with error handling
-const fs = require('fs');
-const ensureUploadsDir = (req, res, next) => {
-  try {
-    if (!fs.existsSync('./uploads')) {
-      fs.mkdirSync('./uploads', { recursive: true });
-      logger.info('Created uploads directory');
-    }
-    next();
-  } catch (err) {
-    logger.error('Failed to create uploads directory:', { message: err.message, stack: err.stack });
-    return res.status(500).json({ message: 'Server error creating uploads directory', error: err.message });
-  }
-};
-
-// MongoDB connection with reconnection logic
-const MONGODB_URI = process.env.MONGODB_URI;
-let isMongoConnected = false;
-
-const connectMongo = () => {
-  mongoose.connect(MONGODB_URI, {
+// MongoDB Connection
+mongoose.connect('mongodb+srv://bobbydevarapu:Boxdome123@cluster0.x5z2v.mongodb.net/boxdome?retryWrites=true&w=majority', {
     useNewUrlParser: true,
     useUnifiedTopology: true
-  }).then(() => {
-    console.log('MongoDB connected successfully to:', MONGODB_URI);
-    isMongoConnected = true;
-  }).catch(err => {
-    logger.error('MongoDB connection error:', {
-      message: err.message,
-      stack: err.stack,
-      code: err.code
-    });
-    isMongoConnected = false;
-    // Retry connection after 5 seconds
-    setTimeout(connectMongo, 5000);
-  });
-
-  mongoose.connection.on('disconnected', () => {
-    logger.warn('MongoDB disconnected, attempting to reconnect...');
-    isMongoConnected = false;
-    setTimeout(connectMongo, 5000);
-  });
-};
-
-connectMongo();
+}).then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
 // User Schema
 const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  profilePic: { type: String, default: 'https://via.placeholder.com/40' },
+    username: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    profilePic: { type: String, default: 'https://via.placeholder.com/80' },
+    joinDate: { type: Date, default: Date.now },
+    role: { type: String, default: 'user' }
 });
 const User = mongoose.model('User', userSchema);
 
 // Wishlist Schema
 const wishlistSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  movieId: { type: String, required: true },
-  movieTitle: { type: String, required: true },
-  movieImg: { type: String, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    movieId: { type: Number, required: true },
+    movieTitle: { type: String, required: true },
+    movieImg: { type: String, required: true }
 });
 const Wishlist = mongoose.model('Wishlist', wishlistSchema);
 
 // Watch Later Schema
 const watchLaterSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  movieId: { type: String, required: true },
-  movieTitle: { type: String, required: true },
-  movieImg: { type: String, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    movieId: { type: Number, required: true },
+    movieTitle: { type: String, required: true },
+    movieImg: { type: String, required: true }
 });
 const WatchLater = mongoose.model('WatchLater', watchLaterSchema);
 
-// Contact Schema
-const contactSchema = new mongoose.Schema({
-  username: { type: String, required: true },
-  email: { type: String, required: true },
-  message: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now },
+// Multer Setup for Profile Picture Upload
+const storage = multer.diskStorage({
+    destination: './public/uploads/',
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
 });
-const Contact = mongoose.model('Contact', contactSchema);
-
-// Middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'No token provided' });
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'X7k9pM2q8vT3yJ5nL6xC4rH8wB9zA2dF1eG3jK7mP4oQ6sI0uR5tY==', { ignoreExpiration: false });
-    req.userId = decoded.userId;
-    next();
-  } catch (err) {
-    logger.error('Token verification error:', { message: err.message, stack: err.stack });
-    res.status(401).json({ message: err.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid token' });
-  }
-};
-
-const validateUserInput = (req, res, next) => {
-  const { username, email, password } = req.body;
-  if (!username || !email || !password) return res.status(400).json({ message: 'All fields are required' });
-  if (!/^[a-zA-Z0-9]+$/.test(username)) return res.status(400).json({ message: 'Username must be alphanumeric' });
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: 'Invalid email' });
-  if (password.length < 6) return res.status(400).json({ message: 'Password must be 6+ characters' });
-  next();
-};
-
-const checkMongoConnection = (req, res, next) => {
-  if (!isMongoConnected) return res.status(503).json({ message: 'Database unavailable, please try again later' });
-  next();
-};
+const upload = multer({ storage: storage });
 
 // Routes
-app.post('/api/signup', checkMongoConnection, validateUserInput, async (req, res) => {
-  const { username, email, password } = req.body;
-  try {
-    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) return res.status(400).json({ message: existingUser.email === email ? 'Email exists' : 'Username exists' });
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, email, password: hashedPassword });
-    await newUser.save();
-    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET || 'X7k9pM2q8vT3yJ5nL6xC4rH8wB9zA2dF1eG3jK7mP4oQ6sI0uR5tY==', { expiresIn: '1h' });
-    res.status(201).json({ message: 'User created', token, user: { username, email, profilePic: newUser.profilePic } });
-  } catch (err) {
-    logger.error('Signup error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+// Signup
+app.post('/api/signup', [
+    check('username').notEmpty().withMessage('Username is required'),
+    check('email').isEmail().withMessage('Valid email is required'),
+    check('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    const { username, email, password } = req.body;
+    try {
+        const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+        if (existingUser) {
+            return res.status(400).json({ message: 'Username or email already exists' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = new User({ username, email, password: hashedPassword });
+        await user.save();
+        const token = jwt.sign({ userId: user._id }, 'your_jwt_secret', { expiresIn: '1h' });
+        res.status(201).json({ message: 'User created successfully', token });
+    } catch (error) {
+        console.error('Signup error:', error);
+        res.status(500).json({ message: 'Server error during signup' });
+    }
 });
 
-app.post('/api/login', checkMongoConnection, async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ message: 'Username and password required' });
-  try {
-    const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'X7k9pM2q8vT3yJ5nL6xC4rH8wB9zA2dF1eG3jK7mP4oQ6sI0uR5tY==', { expiresIn: '1h' });
-    res.json({ message: 'Login successful', token, user: { username: user.username, email: user.email, profilePic: user.profilePic } });
-  } catch (err) {
-    logger.error('Login error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+// Login
+app.post('/api/login', [
+    check('username').notEmpty().withMessage('Username is required'),
+    check('password').notEmpty().withMessage('Password is required')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    const { username, password } = req.body;
+    try {
+        const user = await User.findOne({ username });
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+        const token = jwt.sign({ userId: user._id }, 'your_jwt_secret', { expiresIn: '1h' });
+        res.json({ message: 'Login successful', token });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Server error during login' });
+    }
 });
 
-app.get('/api/user', authenticateToken, checkMongoConnection, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId).select('-password');
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json({ username: user.username, email: user.email, profilePic: user.profilePic });
-  } catch (err) {
-    logger.error('User info error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+// Get User Info
+app.get('/api/user', authenticateToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId).select('-password');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        res.json(user);
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.post('/api/update-profile-pic', authenticateToken, ensureUploadsDir, upload.single('profilePic'), checkMongoConnection, async (req, res) => {
-  const profilePic = req.file ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` : req.body.profilePic;
-  if (!profilePic) return res.status(400).json({ message: 'Profile picture required' });
-  try {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    user.profilePic = profilePic;
-    await user.save();
-    logger.info('Updated profilePic:', { profilePic });
-    res.json({ message: 'Profile picture updated', profilePic });
-  } catch (err) {
-    logger.error('Update profile picture error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+// Update Profile Picture
+app.post('/api/update-profile-pic', authenticateToken, upload.single('profilePic'), async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        if (req.file) {
+            const oldProfilePic = user.profilePic;
+            const profilePicUrl = `https://boxdome-app.onrender.com/public/uploads/${req.file.filename}`;
+            user.profilePic = profilePicUrl;
+            await user.save();
+
+            if (oldProfilePic && oldProfilePic.startsWith('https://boxdome-app.onrender.com/public/uploads/')) {
+                const filename = oldProfilePic.split('/').pop();
+                await unlinkAsync(`./public/uploads/${filename}`).catch(err => console.error('Error deleting old profile pic:', err));
+            }
+
+            res.json({ message: 'Profile picture updated', profilePic: profilePicUrl });
+        } else {
+            res.status(400).json({ message: 'No file uploaded' });
+        }
+    } catch (error) {
+        console.error('Error updating profile pic:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.post('/api/update-profile', authenticateToken, checkMongoConnection, async (req, res) => {
-  const { username, email } = req.body;
-  if (!username || !email) return res.status(400).json({ message: 'Username and email required' });
-  if (!/^[a-zA-Z0-9]+$/.test(username)) return res.status(400).json({ message: 'Username must be alphanumeric' });
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: 'Invalid email' });
-  try {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    const existingUser = await User.findOne({ $or: [{ email }, { username }], _id: { $ne: req.userId } });
-    if (existingUser) return res.status(400).json({ message: existingUser.email === email ? 'Email exists' : 'Username exists' });
-    user.username = username;
-    user.email = email;
-    await user.save();
-    res.json({ message: 'Profile updated' });
-  } catch (err) {
-    logger.error('Update profile error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+// Update Username/Email
+app.post('/api/update-profile', authenticateToken, [
+    check('username').notEmpty().withMessage('Username is required'),
+    check('email').isEmail().withMessage('Valid email is required')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    try {
+        const user = await User.findById(req.user.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const { username, email } = req.body;
+        const existingUser = await User.findOne({ $or: [{ username }, { email }], _id: { $ne: user._id } });
+        if (existingUser) {
+            return res.status(400).json({ message: 'Username or email already in use' });
+        }
+
+        user.username = username;
+        user.email = email;
+        await user.save();
+        res.json({ message: 'Profile updated successfully' });
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.post('/api/change-password', authenticateToken, checkMongoConnection, async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-  if (!currentPassword || !newPassword) return res.status(400).json({ message: 'Current and new passwords required' });
-  if (newPassword.length < 6) return res.status(400).json({ message: 'New password must be 6+ characters' });
-  try {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Current password incorrect' });
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedNewPassword;
-    await user.save();
-    res.json({ message: 'Password changed' });
-  } catch (err) {
-    logger.error('Change password error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+// Change Password
+app.post('/api/change-password', authenticateToken, [
+    check('currentPassword').notEmpty().withMessage('Current password is required'),
+    check('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    try {
+        const user = await User.findById(req.user.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const { currentPassword, newPassword } = req.body;
+        if (!(await bcrypt.compare(currentPassword, user.password))) {
+            return res.status(401).json({ message: 'Current password is incorrect' });
+        }
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+        res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+        console.error('Error changing password:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.post('/api/wishlist', authenticateToken, checkMongoConnection, async (req, res) => {
-  const { movieId, movieTitle, movieImg } = req.body;
-  if (!movieId || !movieTitle || !movieImg) return res.status(400).json({ message: 'Movie details required' });
-  try {
-    const existingItem = await Wishlist.findOne({ userId: req.userId, movieId });
-    if (existingItem) return res.status(400).json({ message: 'Movie already in wishlist' });
-    const wishlistItem = new Wishlist({ userId: req.userId, movieId, movieTitle, movieImg });
-    await wishlistItem.save();
-    res.json({ message: 'Added to wishlist' });
-  } catch (err) {
-    logger.error('Add to wishlist error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+// Wishlist Routes
+app.get('/api/wishlist', authenticateToken, async (req, res) => {
+    try {
+        const wishlist = await Wishlist.find({ userId: req.user.userId });
+        res.json({ wishlist });
+    } catch (error) {
+        console.error('Error fetching wishlist:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.get('/api/wishlist', authenticateToken, checkMongoConnection, async (req, res) => {
-  try {
-    const wishlist = await Wishlist.find({ userId: req.userId });
-    res.json({ wishlist });
-  } catch (err) {
-    logger.error('Get wishlist error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+app.post('/api/wishlist', authenticateToken, async (req, res) => {
+    try {
+        const { movieId, movieTitle, movieImg } = req.body;
+        const existing = await Wishlist.findOne({ userId: req.user.userId, movieId });
+        if (existing) return res.status(400).json({ message: 'Movie already in wishlist' });
+
+        const wishlistItem = new Wishlist({ userId: req.user.userId, movieId, movieTitle, movieImg });
+        await wishlistItem.save();
+        res.json({ message: 'Added to wishlist' });
+    } catch (error) {
+        console.error('Error adding to wishlist:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.delete('/api/wishlist', authenticateToken, checkMongoConnection, async (req, res) => {
-  const { movieId } = req.body;
-  if (!movieId) return res.status(400).json({ message: 'Movie ID required' });
-  try {
-    await Wishlist.deleteOne({ userId: req.userId, movieId });
-    res.json({ message: 'Removed from wishlist' });
-  } catch (err) {
-    logger.error('Remove from wishlist error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+app.delete('/api/wishlist', authenticateToken, async (req, res) => {
+    try {
+        const { movieId } = req.body;
+        await Wishlist.deleteOne({ userId: req.user.userId, movieId });
+        res.json({ message: 'Removed from wishlist' });
+    } catch (error) {
+        console.error('Error removing from wishlist:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.post('/api/watchlater', authenticateToken, checkMongoConnection, async (req, res) => {
-  const { movieId, movieTitle, movieImg } = req.body;
-  if (!movieId || !movieTitle || !movieImg) return res.status(400).json({ message: 'Movie details required' });
-  try {
-    const existingItem = await WatchLater.findOne({ userId: req.userId, movieId });
-    if (existingItem) return res.status(400).json({ message: 'Movie already in watch later' });
-    const watchLaterItem = new WatchLater({ userId: req.userId, movieId, movieTitle, movieImg });
-    await watchLaterItem.save();
-    res.json({ message: 'Added to watch later' });
-  } catch (err) {
-    logger.error('Add to watch later error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+// Watch Later Routes
+app.get('/api/watchlater', authenticateToken, async (req, res) => {
+    try {
+        const watchLater = await WatchLater.find({ userId: req.user.userId });
+        res.json({ watchLater });
+    } catch (error) {
+        console.error('Error fetching watch later:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.get('/api/watchlater', authenticateToken, checkMongoConnection, async (req, res) => {
-  try {
-    const watchLater = await WatchLater.find({ userId: req.userId });
-    res.json({ watchLater });
-  } catch (err) {
-    logger.error('Get watch later error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+app.post('/api/watchlater', authenticateToken, async (req, res) => {
+    try {
+        const { movieId, movieTitle, movieImg } = req.body;
+        const existing = await WatchLater.findOne({ userId: req.user.userId, movieId });
+        if (existing) return res.status(400).json({ message: 'Movie already in watch later' });
+
+        const watchLaterItem = new WatchLater({ userId: req.user.userId, movieId, movieTitle, movieImg });
+        await watchLaterItem.save();
+        res.json({ message: 'Added to watch later' });
+    } catch (error) {
+        console.error('Error adding to watch later:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.delete('/api/watchlater', authenticateToken, checkMongoConnection, async (req, res) => {
-  const { movieId } = req.body;
-  if (!movieId) return res.status(400).json({ message: 'Movie ID required' });
-  try {
-    await WatchLater.deleteOne({ userId: req.userId, movieId });
-    res.json({ message: 'Removed from watch later' });
-  } catch (err) {
-    logger.error('Remove from watch later error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+app.delete('/api/watchlater', authenticateToken, async (req, res) => {
+    try {
+        const { movieId } = req.body;
+        await WatchLater.deleteOne({ userId: req.user.userId, movieId });
+        res.json({ message: 'Removed from watch later' });
+    } catch (error) {
+        console.error('Error removing from watch later:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.post('/api/contact', checkMongoConnection, async (req, res) => {
-  const { username, email, message } = req.body;
-  if (!username || !email || !message) return res.status(400).json({ message: 'All fields required' });
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: 'Invalid email' });
-  try {
-    const contactMessage = new Contact({ username, email, message });
-    await contactMessage.save();
-    res.json({ message: 'Message sent' });
-  } catch (err) {
-    logger.error('Contact form error:', { message: err.message, stack: err.stack });
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+// Admin Routes
+app.get('/api/admin/users', authenticateToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+        if (!user || user.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+
+        const users = await User.find().select('-password');
+        res.json(users);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'Frontend', 'index.html')));
-app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, 'Frontend', 'dashboard.html')));
-app.get('*', (req, res) => {
-  if (req.accepts('html')) {
-    res.sendFile(path.join(__dirname, 'Frontend', 'index.html'));
-  } else {
-    res.status(404).json({ message: 'Not found' });
-  }
+// Contact Route
+app.post('/api/contact', async (req, res) => {
+    const { username, email, message } = req.body;
+    try {
+        // Here you would typically save to a database or send an email
+        console.log('Contact form submission:', { username, email, message });
+        res.json({ message: 'Message received successfully' });
+    } catch (error) {
+        console.error('Error processing contact form:', error);
+        res.status(500).json({ message: 'Failed to process contact form' });
+    }
 });
 
-app.use((err, req, res, next) => {
-  logger.error('Server error:', {
-    message: err.message,
-    stack: err.stack,
-    path: req.path,
-    method: req.method,
-    body: req.body,
-    headers: req.headers
-  });
-  res.status(500).json({ message: 'Something went wrong', error: process.env.NODE_ENV === 'development' ? err.message : undefined });
-});
+// Authentication Middleware
+function authenticateToken(req, res, next) {
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token provided' });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    jwt.verify(token, 'your_jwt_secret', (err, decoded) => {
+        if (err) return res.status(403).json({ message: 'Invalid token' });
+        req.user = decoded;
+        next();
+    });
+}
+
+// Start Server
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
