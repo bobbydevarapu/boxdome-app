@@ -1,6 +1,6 @@
 // constants.js or at the top of your script
-const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.onrender.com/api';
-const TMDB_API_KEY = '4e8b127b76ea53ce61591bb9c3c372e0'; // Your TMDB API key
+const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.onrender.com/api'; // Updated to Render URL
+const TMDB_API_KEY = '4065c93a0ae09813d967f09814854947'; // Your new TMDB API key 
 
 let movieData = {};
 
@@ -8,11 +8,9 @@ let movieData = {};
 async function fetchMovies(category) {
     console.log(`Fetching movies for ${category}`);
     const container = document.getElementById(`${category}Movies`);
-    if (!container) {
-        console.error(`Container ${category}Movies not found in DOM`);
-        return [];
+    if (container) {
+        container.innerHTML = '<p>Loading...</p>';
     }
-    container.innerHTML = '<p>Loading...</p>';
 
     let url;
     try {
@@ -28,24 +26,18 @@ async function fetchMovies(category) {
             throw new Error(`Invalid category: ${category}`);
         }
 
-        console.log(`Fetching URL: ${url}`);
-        const response = await fetch(url, {
-            mode: 'cors',
-            credentials: 'omit'
-        });
-        console.log(`Response status: ${response.status}, statusText: ${response.statusText}`);
+        const response = await fetch(url);
+        console.log(`Response for ${category}:`, response.status);
         if (!response.ok) {
             throw new Error(`Failed to fetch ${category} movies: ${response.statusText}`);
         }
 
         const data = await response.json();
-        console.log(`Fetched data:`, data);
-        if (!data.results || !Array.isArray(data.results) || data.results.length === 0) {
-            console.warn(`No results or invalid data format for ${category} movies`);
-            throw new Error(`No movies found for ${category}`);
+        if (!data.results || !Array.isArray(data.results)) {
+            throw new Error(`Invalid data format for ${category} movies`);
         }
 
-        const movies = data.results.map(movie => ({
+        return data.results.map(movie => ({
             id: movie.id,
             title: movie.title,
             subtitle: `${new Date(movie.release_date).getFullYear()} • Genre`,
@@ -54,38 +46,27 @@ async function fetchMovies(category) {
             overview: movie.overview || 'No overview available.',
             category: category
         }));
-        return movies;
     } catch (error) {
         console.error(`Error fetching ${category} movies:`, error);
-        container.innerHTML = `<p>Failed to load ${category} movies. Error: ${error.message}. Check console for details.</p>`;
+        if (container) {
+            container.innerHTML = '<p>Failed to load movies. Please try again later.</p>';
+        }
         return [];
     }
 }
 
 // Fetch movie trailer from TMDB
 async function fetchMovieTrailer(movieId) {
-    console.log(`Fetching trailer for movie ID ${movieId}`);
     try {
-        const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}&language=en-US`, {
-            mode: 'cors',
-            credentials: 'omit'
-        });
-        console.log(`Trailer response for ${movieId}:`, response.status, response.statusText);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch trailer: ${response.statusText}`);
-        }
-
+        const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}&language=en-US`);
         const data = await response.json();
-        console.log(`Trailer data for ${movieId}:`, data);
-        if (!data.results || !Array.isArray(data.results)) {
-            console.warn(`No video results for movie ID ${movieId}`);
-            return null;
+        if (response.ok && data.results && data.results.length > 0) {
+            const trailer = data.results.find(video => video.type === 'Trailer' && video.site === 'YouTube') ||
+                           data.results.find(video => video.type === 'Teaser' && video.site === 'YouTube') ||
+                           data.results.find(video => video.site === 'YouTube');
+            return trailer ? trailer.key : null;
         }
-
-        const trailer = data.results.find(video => video.type === 'Trailer' && video.site === 'YouTube') ||
-                       data.results.find(video => video.type === 'Teaser' && video.site === 'YouTube') ||
-                       data.results.find(video => video.site === 'YouTube');
-        return trailer ? trailer.key : null;
+        return null;
     } catch (error) {
         console.error(`Error fetching trailer for movie ID ${movieId}:`, error);
         return null;
@@ -102,18 +83,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Fetch movies for all categories (for both index.html and dashboard.html)
-    const categories = ['latest', 'hollywood', 'bollywood', 'tollywood'];
-    for (const category of categories) {
-        if (document.getElementById(`${category}Movies`)) {
-            try {
-                movieData[category] = await fetchMovies(category);
-                console.log(`Loaded ${movieData[category].length} movies for ${category}`);
-                loadMovies(`${category}Movies`, movieData[category].slice(0, 4));
-            } catch (error) {
-                console.error(`Failed to load ${category} movies:`, error);
-                loadMovies(`${category}Movies`, []); // Load empty to show error message
-            }
-        }
+    if (document.getElementById('latestMovies')) {
+        movieData.latest = await fetchMovies('latest');
+        loadMovies('latestMovies', movieData.latest.slice(0, 4));
+    }
+    if (document.getElementById('hollywoodMovies')) {
+        movieData.hollywood = await fetchMovies('hollywood');
+        loadMovies('hollywoodMovies', movieData.hollywood.slice(0, 4));
+    }
+    if (document.getElementById('bollywoodMovies')) {
+        movieData.bollywood = await fetchMovies('bollywood');
+        loadMovies('bollywoodMovies', movieData.bollywood.slice(0, 4));
+    }
+    if (document.getElementById('tollywoodMovies')) {
+        movieData.tollywood = await fetchMovies('tollywood');
+        loadMovies('tollywoodMovies', movieData.tollywood.slice(0, 4));
     }
 
     // Back to Top Button Visibility (for index.html)
@@ -154,7 +138,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     showAlert('Message sent successfully!', 'success');
                     contactForm.reset();
                 } else {
-                    showAlert(data.message || 'Failed to send message. Please try again later.', 'error');
+                    showAlert('Failed to send message. Please try again later.', 'error');
                 }
             } catch (error) {
                 console.error('Error sending contact message:', error);
@@ -207,18 +191,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Load movies (for both index.html and dashboard.html)
 function loadMovies(containerId, movieList) {
     const container = document.getElementById(containerId);
-    if (!container) {
-        console.error(`Container ${containerId} not found in DOM`);
-        return;
-    }
+    if (!container) return;
     container.innerHTML = '';
     const token = localStorage.getItem('token');
     const isDashboard = document.getElementById('sidebar'); // Check if on dashboard
-
-    if (movieList.length === 0) {
-        container.innerHTML = '<p>No movies available. Check console for errors.</p>';
-        return;
-    }
 
     movieList.forEach(movie => {
         const card = document.createElement('div');
@@ -268,10 +244,7 @@ async function searchMoviesIndex() {
     }
 
     try {
-        const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`, {
-            mode: 'cors',
-            credentials: 'omit'
-        });
+        const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`);
         const movies = await response.json();
 
         if (response.ok) {
@@ -346,10 +319,7 @@ async function searchMovies() {
     }
 
     try {
-        const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`, {
-            mode: 'cors',
-            credentials: 'omit'
-        });
+        const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`);
         const movies = await response.json();
 
         if (response.ok) {
@@ -453,17 +423,21 @@ function showSection(sectionId) {
     } else if (sectionId === 'adminPanel') {
         loadAdminPanel();
     } else if (sectionId === 'home') {
-        const categories = ['latest', 'hollywood', 'bollywood', 'tollywood'];
-        categories.forEach(category => {
-            if (document.getElementById(`${category}Movies`)) {
-                fetchMovies(category).then(movies => {
-                    movieData[category] = movies;
-                    loadMovies(`${category}Movies`, movieData[category].slice(0, 4));
-                }).catch(error => {
-                    console.error(`Failed to reload ${category} movies:`, error);
-                    loadMovies(`${category}Movies`, []); // Show error message
-                });
-            }
+        fetchMovies('latest').then(movies => {
+            movieData.latest = movies;
+            loadMovies('latestMovies', movieData.latest.slice(0, 4));
+        });
+        fetchMovies('hollywood').then(movies => {
+            movieData.hollywood = movies;
+            loadMovies('hollywoodMovies', movieData.hollywood.slice(0, 4));
+        });
+        fetchMovies('bollywood').then(movies => {
+            movieData.bollywood = movies;
+            loadMovies('bollywoodMovies', movieData.bollywood.slice(0, 4));
+        });
+        fetchMovies('tollywood').then(movies => {
+            movieData.tollywood = movies;
+            loadMovies('tollywoodMovies', movieData.tollywood.slice(0, 4));
         });
     }
 
@@ -558,7 +532,7 @@ function setProfilePicture(event) {
     if (profilePicDisplay) profilePicDisplay.src = URL.createObjectURL(file);
 
     // Force backend URL and pre-flight check
-    const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://boxdome-app.onrender.com';
+    const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://boxdome-app.onrender.com'; // Updated to Render URL
     console.log('Forced Backend URL:', backendUrl);
 
     fetch(`${backendUrl}/`, { method: 'HEAD' })
@@ -593,7 +567,7 @@ function setProfilePicture(event) {
                 return response.json();
             })
             .then(data => {
-                if (data.message === 'Profile picture updated') {
+                if (data.message === 'Profile picture updated successfully') {
                     const newProfilePicUrl = data.profilePic;
                     console.log('New Profile Pic URL from server:', newProfilePicUrl);
 
@@ -638,19 +612,15 @@ function toggleEditUsername() {
     const saveUsernameBtn = document.getElementById('saveUsernameBtn');
     const editBtn = document.querySelector('#userProfile .edit-btn');
 
-    if (usernameInput && saveUsernameBtn && editBtn) {
-        if (usernameInput.style.display === 'none') {
-            usernameInput.style.display = 'inline-block';
-            saveUsernameBtn.style.display = 'inline-block';
-            editBtn.style.display = 'none';
-            usernameInput.value = document.getElementById('usernameDisplay').textContent;
-        } else {
-            usernameInput.style.display = 'none';
-            saveUsernameBtn.style.display = 'none';
-            editBtn.style.display = 'inline-block';
-        }
+    if (usernameInput.style.display === 'none') {
+        usernameInput.style.display = 'inline-block';
+        saveUsernameBtn.style.display = 'inline-block';
+        editBtn.style.display = 'none';
+        usernameInput.value = document.getElementById('usernameDisplay').textContent;
     } else {
-        console.error('Username input, save button, or edit button not found');
+        usernameInput.style.display = 'none';
+        saveUsernameBtn.style.display = 'none';
+        editBtn.style.display = 'inline-block';
     }
 }
 
@@ -692,10 +662,6 @@ async function saveUsername() {
 async function loadWishlist() {
     console.log("Loading wishlist");
     const wishlistContainer = document.getElementById('wishlistMovies');
-    if (!wishlistContainer) {
-        console.error('Wishlist container not found');
-        return;
-    }
     wishlistContainer.innerHTML = '<p>Loading...</p>';
 
     const token = localStorage.getItem('token');
@@ -780,10 +746,6 @@ async function removeFromWishlist(movieId) {
 async function loadWatchLater() {
     console.log("Loading watch later");
     const watchLaterContainer = document.getElementById('watchLaterMovies');
-    if (!watchLaterContainer) {
-        console.error('Watch later container not found');
-        return;
-    }
     watchLaterContainer.innerHTML = '<p>Loading...</p>';
 
     const token = localStorage.getItem('token');
@@ -900,10 +862,6 @@ async function removeFromWatchLater(movieId) {
 async function loadAdminPanel() {
     console.log("Loading admin panel");
     const userList = document.getElementById('userList');
-    if (!userList) {
-        console.error('User list container not found');
-        return;
-    }
     userList.innerHTML = '<p>Loading...</p>';
 
     const token = localStorage.getItem('token');
@@ -1000,13 +958,11 @@ function changeFontSize(action) {
 function closeSettingsCard() {
     console.log("Closing settings card");
     const settingsCard = document.getElementById('settingsCard');
-    if (settingsCard) {
-        settingsCard.classList.add('closing');
-        setTimeout(() => {
-            document.getElementById('settings').style.display = 'none';
-            settingsCard.classList.remove('closing');
-        }, 500);
-    }
+    settingsCard.classList.add('closing');
+    setTimeout(() => {
+        document.getElementById('settings').style.display = 'none';
+        settingsCard.classList.remove('closing');
+    }, 500);
 }
 
 function saveSettings() {
@@ -1089,17 +1045,11 @@ async function addToWishlist(movieId, title, img, subtitle, rating, overview) {
 async function playTrailer(movieId) {
     console.log(`Playing trailer for movie ${movieId}`);
     const trailerKey = await fetchMovieTrailer(movieId);
-    console.log(`Trailer key for ${movieId}:`, trailerKey);
     if (trailerKey) {
         const modal = document.getElementById('trailerModal');
         const player = document.getElementById('trailerPlayer');
-        if (modal && player) {
-            player.innerHTML = `<iframe src="https://www.youtube.com/embed/${trailerKey}?autoplay=1" allowfullscreen></iframe>`;
-            modal.style.display = 'flex';
-        } else {
-            console.error('Trailer modal or player not found');
-            showAlert('Trailer modal or player element missing. Please check your HTML.', 'error');
-        }
+        player.innerHTML = `<iframe src="https://www.youtube.com/embed/${trailerKey}?autoplay=1" allowfullscreen></iframe>`;
+        modal.style.display = 'flex';
     } else {
         showAlert('Trailer not available for this movie.', 'info');
     }
@@ -1109,19 +1059,14 @@ function showMovieDetails(id, title, img, subtitle, rating, overview) {
     console.log(`Showing details for ${title}`);
     const modal = document.getElementById('detailsModal');
     const detailsContainer = document.getElementById('movieDetails');
-    if (modal && detailsContainer) {
-        detailsContainer.innerHTML = `
-            <img src="${img}" alt="${title}">
-            <h3>${title}</h3>
-            <p>${subtitle}</p>
-            <p>Rating: ${rating}</p>
-            <p>${overview}</p>
-        `;
-        modal.style.display = 'flex';
-    } else {
-        console.error('Details modal or container not found');
-        showAlert('Details modal or container missing. Please check your HTML.', 'error');
-    }
+    detailsContainer.innerHTML = `
+        <img src="${img}" alt="${title}">
+        <h3>${title}</h3>
+        <p>${subtitle}</p>
+        <p>Rating: ${rating}</p>
+        <p>${overview}</p>
+    `;
+    modal.style.display = 'flex';
 }
 
 function shareMovie(movieId, title) {
@@ -1139,75 +1084,46 @@ function showDownloadOptions(movieTitle) {
     console.log(`Showing download options for ${movieTitle}`);
     const modal = document.getElementById('downloadOptionsModal');
     const titleElement = document.getElementById('downloadModalTitle');
-    if (modal && titleElement) {
-        titleElement.textContent = `Download "${movieTitle}"`;
-        modal.style.display = 'flex';
-    } else {
-        console.error('Download modal or title element not found');
-        showAlert('Download modal or title element missing. Please check your HTML.', 'error');
-    }
+    titleElement.textContent = `Download "${movieTitle}"`;
+    modal.style.display = 'flex';
 }
 
 function showDownloadOptionsComingSoon() {
     console.log("Showing download options coming soon");
     const modal = document.getElementById('comingSoonModal');
-    if (modal) {
-        modal.style.display = 'flex';
-    } else {
-        console.error('Coming soon modal not found');
-        showAlert('Coming soon modal missing. Please check your HTML.', 'error');
-    }
+    modal.style.display = 'flex';
 }
 
 function showComingSoon() {
     console.log("Showing coming soon");
     const modal = document.getElementById('comingSoonModal');
-    if (modal) {
-        modal.style.display = 'flex';
-    } else {
-        console.error('Coming soon modal not found');
-        showAlert('Coming soon modal missing. Please check your HTML.', 'error');
-    }
+    modal.style.display = 'flex';
 }
 
 function closeModal() {
     console.log("Closing trailer modal");
     const modal = document.getElementById('trailerModal');
-    if (modal) {
-        modal.style.display = 'none';
-        const player = document.getElementById('trailerPlayer');
-        if (player) {
-            player.innerHTML = '';
-        }
-    }
+    modal.style.display = 'none';
+    document.getElementById('trailerPlayer').innerHTML = '';
 }
 
 function closeDetailsModal() {
     console.log("Closing details modal");
     const modal = document.getElementById('detailsModal');
-    if (modal) {
-        modal.style.display = 'none';
-        const detailsContainer = document.getElementById('movieDetails');
-        if (detailsContainer) {
-            detailsContainer.innerHTML = '';
-        }
-    }
+    modal.style.display = 'none';
+    document.getElementById('movieDetails').innerHTML = '';
 }
 
 function closeDownloadModal() {
     console.log("Closing download modal");
     const modal = document.getElementById('downloadOptionsModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    modal.style.display = 'none';
 }
 
 function closeComingSoonModal() {
     console.log("Closing coming soon modal");
     const modal = document.getElementById('comingSoonModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    modal.style.display = 'none';
 }
 
 function promptLogin(movieId, title, img, action) {
@@ -1220,19 +1136,15 @@ function showMoreMovies(category) {
     console.log(`Showing more movies for ${category}`);
     const container = document.getElementById(`${category}Movies`);
     const moreBtn = document.querySelector(`#${category} .more-btn`);
-    if (!container || !moreBtn) {
-        console.error(`Container or more button for ${category} not found`);
-        return;
-    }
     const isExpanded = container.classList.contains('expanded');
 
     if (!isExpanded) {
         container.classList.add('expanded');
-        loadMovies(`${category}Movies`, movieData[category] || []);
+        loadMovies(`${category}Movies`, movieData[category]);
         moreBtn.textContent = 'Show Less';
     } else {
         container.classList.remove('expanded');
-        loadMovies(`${category}Movies`, (movieData[category] || []).slice(0, 4));
+        loadMovies(`${category}Movies`, movieData[category].slice(0, 4));
         moreBtn.textContent = 'More Movies';
         document.getElementById(category).scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -1269,7 +1181,7 @@ function scrollToSection(sectionId) {
     console.log(`Scrolling to section: ${sectionId}`);
     const section = document.getElementById(sectionId);
     if (section) {
-        const headerHeight = document.querySelector('header')?.offsetHeight || 0;
+        const headerHeight = document.querySelector('header').offsetHeight;
         const sectionPosition = section.getBoundingClientRect().top + window.scrollY - headerHeight;
         window.scrollTo({
             top: sectionPosition,
@@ -1318,15 +1230,51 @@ function openAuthModal(type) {
         loginForm.style.display = type === 'login' ? 'block' : 'none';
         signupForm.style.display = type === 'signup' ? 'block' : 'none';
     } else {
-        console.error('Auth modal, login form, or signup form not found');
-        showAlert('Authentication modal or forms missing. Please check your HTML.', 'error');
+        console.error('Auth modal elements not found');
+    }
+}
+
+function closeAuthModal() {
+    console.log("Closing auth modal");
+    const modal = document.getElementById('authModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function showSignup() {
+    console.log("Showing signup form");
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+    if (loginForm && signupForm) {
+        loginForm.style.display = 'none';
+        signupForm.style.display = 'block';
+    }
+}
+
+function showLogin() {
+    console.log("Showing login form");
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+    if (loginForm && signupForm) {
+        loginForm.style.display = 'block';
+        signupForm.style.display = 'none';
     }
 }
 
 async function login() {
-    console.log("Logging in");
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
+    console.log("Attempting login");
+    const loginUsername = document.getElementById('loginUsername');
+    const loginPassword = document.getElementById('loginPassword');
+    const authMessage = document.getElementById('authMessage');
+
+    if (!loginUsername || !loginPassword) {
+        showAlert('Login form elements are missing.', 'error');
+        return;
+    }
+
+    const username = loginUsername.value.trim();
+    const password = loginPassword.value.trim();
 
     if (!username || !password) {
         showAlert('Please fill out all fields.', 'error');
@@ -1339,46 +1287,72 @@ async function login() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
+
         const data = await response.json();
+        console.log('Login response:', { status: response.status, data });
+
         if (response.ok) {
             localStorage.setItem('token', data.token);
             showAlert('Login successful!', 'success');
             closeAuthModal();
 
-            // Handle pending action after login
             const pendingAction = JSON.parse(localStorage.getItem('pendingAction'));
             if (pendingAction) {
                 const { movieId, title, img, action } = pendingAction;
-                localStorage.removeItem('pendingAction');
-                if (action === 'wishlist') {
-                    addToWishlist(movieId, title, img, `${new Date().getFullYear()} • Genre`, 'N/A', 'No overview available.');
-                } else if (action === 'trailer') {
-                    playTrailer(movieId);
-                } else if (action === 'watchlater') {
-                    addToWatchLater(movieId, title, img, `${new Date().getFullYear()} • Genre`, 'N/A', 'No overview available.');
-                } else if (action === 'details') {
-                    navigateTo('dashboard.html');
+                try {
+                    if (action === 'wishlist') {
+                        await addToWishlist(movieId, title, img, `${new Date().getFullYear()} • Genre`, 'N/A', 'No overview available.');
+                    } else if (action === 'trailer') {
+                        await playTrailer(movieId);
+                    } else if (action === 'details') {
+                        navigateTo('dashboard.html');
+                    } else if (action === 'watchlater') {
+                        await addToWatchLater(movieId, title, img, `${new Date().getFullYear()} • Genre`, 'N/A', 'No overview available.');
+                    }
+                } catch (actionError) {
+                    console.error(`Failed to execute pending action ${action}:`, actionError);
+                    showAlert(`Failed to perform ${action} action. Please try again.`, 'error');
                 }
+                localStorage.removeItem('pendingAction');
             } else {
                 navigateTo('dashboard.html');
             }
         } else {
+            if (authMessage) {
+                authMessage.textContent = data.message || 'Invalid credentials or server error';
+            }
             showAlert(data.message || 'Login failed. Please try again.', 'error');
         }
     } catch (error) {
-        console.error('Error during login:', error);
-        showAlert('Login failed. Please try again later.', 'error');
+        console.error('Network error during login:', error);
+        showAlert('Unable to connect to the server. Please check your network and try again.', 'error');
     }
 }
 
 async function signup() {
-    console.log("Signing up");
-    const username = document.getElementById('signupUsername').value;
-    const email = document.getElementById('signupEmail').value;
-    const password = document.getElementById('signupPassword').value;
+    console.log("Attempting signup");
+    const signupUsername = document.getElementById('signupUsername');
+    const signupEmail = document.getElementById('signupEmail');
+    const signupPassword = document.getElementById('signupPassword');
+    const confirmPassword = document.getElementById('confirmPassword');
+    const signupMessage = document.getElementById('signupMessage');
 
-    if (!username || !email || !password) {
+    if (!signupUsername || !signupEmail || !signupPassword || !confirmPassword) {
+        showAlert('Signup form elements are missing.', 'error');
+        return;
+    }
+
+    const username = signupUsername.value.trim();
+    const email = signupEmail.value.trim();
+    const password = signupPassword.value.trim();
+    const confirmPass = confirmPassword.value.trim();
+
+    if (!username || !email || !password || !confirmPass) {
         showAlert('Please fill out all fields.', 'error');
+        return;
+    }
+    if (password !== confirmPass) {
+        showAlert('Passwords do not match.', 'error');
         return;
     }
 
@@ -1388,268 +1362,50 @@ async function signup() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, email, password })
         });
+
         const data = await response.json();
+        console.log('Signup response:', { status: response.status, data });
+
         if (response.ok) {
-            localStorage.setItem('token', data.token);
-            showAlert('Signup successful! Redirecting to dashboard...', 'success');
-            closeAuthModal();
-            setTimeout(() => navigateTo('dashboard.html'), 2000);
+            showAlert('Sign up successful! Please log in.', 'success');
+            showLogin();
+            const signupForm = document.getElementById('signupForm');
+            if (signupForm) signupForm.reset(); // Clear form
         } else {
+            if (signupMessage) {
+                signupMessage.textContent = data.message || 'Signup failed. Please try again.';
+            }
             showAlert(data.message || 'Signup failed. Please try again.', 'error');
         }
     } catch (error) {
-        console.error('Error during signup:', error);
-        showAlert('Signup failed. Please try again later.', 'error');
+        console.error('Network error during signup:', error);
+        showAlert('Unable to connect to the server. Please check your network and try again.', 'error');
     }
 }
 
-function closeAuthModal() {
-    console.log("Closing auth modal");
-    const modal = document.getElementById('authModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('signupForm').style.display = 'none';
-    }
-}
-
-function showAlert(message, type) {
-    console.log(`Showing alert: ${message}, type: ${type}`);
-    const alertBox = document.createElement('div');
-    alertBox.className = `alert ${type}`;
-    alertBox.textContent = message;
-    document.body.appendChild(alertBox);
-    setTimeout(() => alertBox.remove(), 3000);
-}// constants.js or at the top of your script
-const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.onrender.com/api';
-const TMDB_API_KEY = '4e8b127b76ea53ce61591bb9c3c372e0'; // Your TMDB API key
-
-let movieData = {};
-
-// Fetch movies from TMDB with category
-async function fetchMovies(category) {
-    console.log(`Fetching movies for ${category}`);
-    const container = document.getElementById(`${category}Movies`);
-    if (container) {
-        container.innerHTML = '<p>Loading...</p>';
+function showAlert(text, type) {
+    console.log(`Showing alert: ${text}, type: ${type}`);
+    const alert = document.createElement('div');
+    alert.className = `alert ${type}`;
+    alert.textContent = text;
+    alert.style.position = 'fixed';
+    alert.style.top = '20px';
+    alert.style.right = '20px';
+    alert.style.padding = '10px 20px';
+    alert.style.borderRadius = '5px';
+    alert.style.zIndex = '1000';
+    alert.style.maxWidth = '300px';
+    alert.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    if (type === 'success') {
+        alert.style.backgroundColor = '#4CAF50';
+        alert.style.color = '#fff';
+    } else if (type === 'error') {
+        alert.style.backgroundColor = '#f44336';
+        alert.style.color = '#fff';
     } else {
-        console.error(`Container ${category}Movies not found in DOM`);
-        return [];
+        alert.style.backgroundColor = '#2196F3';
+        alert.style.color = '#fff';
     }
-
-    let url;
-    try {
-        if (category === 'latest') {
-            url = `https://api.themoviedb.org/3/movie/now_playing?api_key=${TMDB_API_KEY}&language=en-US&page=1`;
-        } else if (category === 'hollywood') {
-            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&with_original_language=en&sort_by=popularity.desc&page=1`;
-        } else if (category === 'bollywood') {
-            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&with_original_language=hi&sort_by=popularity.desc&page=1`;
-        } else if (category === 'tollywood') {
-            url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&with_original_language=te&sort_by=popularity.desc&page=1`;
-        } else {
-            throw new Error(`Invalid category: ${category}`);
-        }
-
-        const response = await fetch(url, {
-            mode: 'cors',
-            credentials: 'omit'
-        });
-        console.log(`Response for ${category}:`, response.status, response.statusText);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch ${category} movies: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        console.log(`Fetched data for ${category}:`, data);
-        if (!data.results || !Array.isArray(data.results) || data.results.length === 0) {
-            console.warn(`No results or invalid data format for ${category} movies`);
-            throw new Error(`No movies found for ${category}`);
-        }
-
-        const movies = data.results.map(movie => ({
-            id: movie.id,
-            title: movie.title,
-            subtitle: `${new Date(movie.release_date).getFullYear()} • Genre`,
-            rating: movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A',
-            img: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 'https://via.placeholder.com/200x250?text=No+Image',
-            overview: movie.overview || 'No overview available.',
-            category: category
-        }));
-        return movies;
-    } catch (error) {
-        console.error(`Error fetching ${category} movies:`, error);
-        if (container) {
-            container.innerHTML = `<p>Failed to load ${category} movies. Error: ${error.message}. Check console for details.</p>`;
-        }
-        return [];
-    }
-}
-
-// Fetch movie trailer from TMDB
-async function fetchMovieTrailer(movieId) {
-    console.log(`Fetching trailer for movie ID ${movieId}`);
-    try {
-        const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}&language=en-US`, {
-            mode: 'cors',
-            credentials: 'omit'
-        });
-        console.log(`Trailer response for ${movieId}:`, response.status, response.statusText);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch trailer: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        console.log(`Trailer data for ${movieId}:`, data);
-        if (!data.results || !Array.isArray(data.results)) {
-            console.warn(`No video results for movie ID ${movieId}`);
-            return null;
-        }
-
-        const trailer = data.results.find(video => video.type === 'Trailer' && video.site === 'YouTube') ||
-                       data.results.find(video => video.type === 'Teaser' && video.site === 'YouTube') ||
-                       data.results.find(video => video.site === 'YouTube');
-        return trailer ? trailer.key : null;
-    } catch (error) {
-        console.error(`Error fetching trailer for movie ID ${movieId}:`, error);
-        return null;
-    }
-}
-
-// Initialize the page
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log("script.js loaded successfully");
-    // Ensure the mobile menu is closed on page load (for index.html)
-    const navLinks = document.getElementById('navLinks');
-    if (navLinks) {
-        navLinks.classList.remove('active');
-    }
-
-    // Fetch movies for all categories (for both index.html and dashboard.html)
-    const categories = ['latest', 'hollywood', 'bollywood', 'tollywood'];
-    for (const category of categories) {
-        if (document.getElementById(`${category}Movies`)) {
-            try {
-                movieData[category] = await fetchMovies(category);
-                console.log(`Loaded ${movieData[category].length} movies for ${category}`);
-                loadMovies(`${category}Movies`, movieData[category].slice(0, 4));
-            } catch (error) {
-                console.error(`Failed to load ${category} movies:`, error);
-                loadMovies(`${category}Movies`, []); // Load empty to show error message
-            }
-        }
-    }
-
-    // Back to Top Button Visibility (for index.html)
-    window.addEventListener('scroll', () => {
-        const backToTop = document.getElementById('backToTop');
-        if (backToTop) {
-            if (window.scrollY > 300) {
-                backToTop.style.display = 'block';
-            } else {
-                backToTop.style.display = 'none';
-            }
-        }
-    });
-
-    // Contact Form Submission (for index.html only)
-    const contactForm = document.getElementById('contactForm');
-    if (contactForm && window.location.pathname.includes('index.html')) {
-        contactForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('contactName')?.value;
-            const email = document.getElementById('contactEmail').value;
-            const message = document.getElementById('contactMessage').value;
-
-            if (!username || !email || !message) {
-                showAlert('Please fill out all fields.', 'error');
-                return;
-            }
-
-            try {
-                const response = await fetch(`${BACKEND_URL}/contact`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, email, message })
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    showAlert('Message sent successfully!', 'success');
-                    contactForm.reset();
-                } else {
-                    showAlert(data.message || 'Failed to send message. Please try again later.', 'error');
-                }
-            } catch (error) {
-                console.error('Error sending contact message:', error);
-                showAlert('Failed to send message. Please try again later.', 'error');
-            }
-        });
-    }
-
-    // Dashboard: Load user info (for dashboard.html)
-    if (document.getElementById('usernameDisplay')) {
-        loadUserInfo();
-    }
-
-    // Dashboard: Apply saved settings (for dashboard.html)
-    applySettings();
-
-    // Index.html: Add event listener for search input
-    const searchInput = document.querySelector('.search-container input');
-    const searchButton = document.querySelector('.search-container button');
-    if (searchInput && searchButton && window.location.pathname.includes('index.html')) {
-        searchInput.addEventListener('input', searchMoviesIndex);
-        searchButton.addEventListener('click', searchMoviesIndex);
-    }
-
-    // Dashboard.html: Add event listener for search input
-    const dashboardSearchInput = document.getElementById('searchInput');
-    if (dashboardSearchInput && window.location.pathname.includes('dashboard.html')) {
-        dashboardSearchInput.addEventListener('input', searchMovies);
-    }
-
-    // Add event listeners for login and signup forms
-    const loginForm = document.getElementById('loginForm');
-    const signupForm = document.getElementById('signupForm');
-
-    if (loginForm) {
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await login();
-        });
-    }
-
-    if (signupForm) {
-        signupForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await signup();
-        });
-    }
-});
-
-// Load movies (for both index.html and dashboard.html)
-function loadMovies(containerId, movieList) {
-    const container = document.getElementById(containerId);
-    if (!container) {
-        console.error(`Container ${containerId} not found in DOM`);
-        return;
-    }
-    container.innerHTML = '';
-    const token = localStorage.getItem('token');
-    const isDashboard = document.getElementById('sidebar'); // Check if on dashboard
-
-    if (movieList.length === 0) {
-        container.innerHTML = '<p>No movies available. Check console for errors.</p>';
-        return;
-    }
-
-    movieList.forEach(movie => {
-        const card = document.createElement('div');
-        card.className = 'movie-card';
-        card.innerHTML = `
-            <img src="${movie.img}" alt="${movie.title}">
-            <h3>${movie.title}</h3>
-            <p class="subtitle">${movie.subtitle}</p>
-            <div class="info">
-                <span>
+    document.body.appendChild(alert);
+    setTimeout(() => alert.remove(), 3000);
+} // Fixed truncation by adding closing bracket
