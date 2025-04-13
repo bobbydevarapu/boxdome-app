@@ -1,5 +1,5 @@
 // constants.js or at the top of your script
-const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.herokuapp.com/api';
+const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.onrender.com/api'; // Updated to Render URL
 const TMDB_API_KEY = '766a6c462b8e5bf3bdb6dde1050e1650'; // Replace with your TMDB API key
 
 let movieData = {};
@@ -245,7 +245,6 @@ async function searchMoviesIndex() {
 
         if (response.ok) {
             searchResultsSection.style.display = 'grid';
-            // Hide other sections
             document.querySelectorAll('.movies').forEach(section => {
                 section.style.display = 'none';
             });
@@ -282,7 +281,6 @@ async function searchMoviesIndex() {
                 searchResultsList.appendChild(card);
             }
 
-            // Scroll to search results
             searchResultsSection.scrollIntoView({ behavior: 'smooth' });
         } else {
             showAlert('Failed to search movies. Please try again later.', 'error');
@@ -417,7 +415,6 @@ function showSection(sectionId) {
     } else if (sectionId === 'adminPanel') {
         loadAdminPanel();
     } else if (sectionId === 'home') {
-        // Refresh movies when Home is clicked
         fetchMovies('latest').then(movies => {
             movieData.latest = movies;
             loadMovies('latestMovies', movieData.latest.slice(0, 4));
@@ -444,164 +441,161 @@ function showSection(sectionId) {
 async function loadUserInfo() {
     const token = localStorage.getItem('token');
     if (!token) {
-      setTimeout(() => window.location.href = 'index.html', 2000);
-      return;
+        setTimeout(() => window.location.href = 'index.html', 2000);
+        return;
     }
-  
+
     try {
-      const response = await fetch(`${BACKEND_URL}/user`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      console.log('User info response:', data);
-      if (response.ok) {
-        document.getElementById('usernameDisplay').textContent = data.username;
-        document.getElementById('emailDisplay').textContent = data.email;
-        document.getElementById('sidebarUsername').textContent = data.username;
-  
-        const userProfilePic = document.getElementById('userProfilePic');
-        const userProfilePicDisplay = document.getElementById('userProfilePicDisplay');
-        if (userProfilePic && data.profilePic) {
-          userProfilePic.src = `${data.profilePic}?t=${new Date().getTime()}`; // Cache busting
-          userProfilePic.onload = () => console.log('Profile pic loaded in profile:', userProfilePic.src);
-          userProfilePic.onerror = () => {
-            console.error('Failed to load profile pic in profile:', userProfilePic.src);
-            userProfilePic.src = 'https://via.placeholder.com/80';
-          };
-        }
-        if (userProfilePicDisplay && data.profilePic) {
-          userProfilePicDisplay.src = `${data.profilePic}?t=${new Date().getTime()}`; // Cache busting
-          userProfilePicDisplay.onload = () => console.log('Profile pic loaded in sidebar:', userProfilePicDisplay.src);
-          userProfilePicDisplay.onerror = () => {
-            console.error('Failed to load profile pic in sidebar:', userProfilePicDisplay.src);
-            userProfilePicDisplay.src = 'https://via.placeholder.com/80';
-          };
-        }
-  
-        const joinDateDisplay = document.getElementById('joinDateDisplay');
-        const wishlistCountDisplay = document.getElementById('wishlistCountDisplay');
-        const watchLaterCountDisplay = document.getElementById('watchLaterCountDisplay');
-  
-        if (joinDateDisplay) {
-          joinDateDisplay.textContent = 'N/A'; // Adjust based on backend response
-        }
-        const wishlistResponse = await fetch(`${BACKEND_URL}/wishlist`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const response = await fetch(`${BACKEND_URL}/user`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-        const wishlistData = await wishlistResponse.json();
-        if (wishlistCountDisplay) wishlistCountDisplay.textContent = wishlistData.wishlist.length || 0;
-  
-        const watchLaterResponse = await fetch(`${BACKEND_URL}/watchlater`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const watchLaterData = await watchLaterResponse.json();
-        if (watchLaterCountDisplay) watchLaterCountDisplay.textContent = watchLaterData.watchLater.length || 0;
-      } else {
-        console.error('Failed to load user info:', data.message);
+        const data = await response.json();
+        console.log('User info response:', data);
+        if (response.ok) {
+            document.getElementById('usernameDisplay').textContent = data.username;
+            document.getElementById('emailDisplay').textContent = data.email;
+            document.getElementById('sidebarUsername').textContent = data.username;
+
+            const userProfilePic = document.getElementById('userProfilePic');
+            const userProfilePicDisplay = document.getElementById('userProfilePicDisplay');
+            if (userProfilePic && data.profilePic) {
+                userProfilePic.src = `${data.profilePic}?t=${new Date().getTime()}`; // Cache busting
+                userProfilePic.onload = () => console.log('Profile pic loaded in profile:', userProfilePic.src);
+                userProfilePic.onerror = () => {
+                    console.error('Failed to load profile pic in profile:', userProfilePic.src);
+                    userProfilePic.src = 'https://via.placeholder.com/80';
+                };
+            }
+            if (userProfilePicDisplay && data.profilePic) {
+                userProfilePicDisplay.src = `${data.profilePic}?t=${new Date().getTime()}`; // Cache busting
+                userProfilePicDisplay.onload = () => console.log('Profile pic loaded in sidebar:', userProfilePicDisplay.src);
+                userProfilePicDisplay.onerror = () => {
+                    console.error('Failed to load profile pic in sidebar:', userProfilePicDisplay.src);
+                    userProfilePicDisplay.src = 'https://via.placeholder.com/80';
+                };
+            }
+
+            const joinDateDisplay = document.getElementById('joinDateDisplay');
+            const wishlistCountDisplay = document.getElementById('wishlistCountDisplay');
+            const watchLaterCountDisplay = document.getElementById('watchLaterCountDisplay');
+
+            if (joinDateDisplay) {
+                joinDateDisplay.textContent = 'N/A'; // Adjust based on backend response
+            }
+            const wishlistResponse = await fetch(`${BACKEND_URL}/wishlist`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const wishlistData = await wishlistResponse.json();
+            if (wishlistCountDisplay) wishlistCountDisplay.textContent = wishlistData.wishlist.length || 0;
+
+            const watchLaterResponse = await fetch(`${BACKEND_URL}/watchlater`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const watchLaterData = await watchLaterResponse.json();
+            if (watchLaterCountDisplay) watchLaterCountDisplay.textContent = watchLaterData.watchLater.length || 0;
+        } else {
+            console.error('Failed to load user info:', data.message);
+            document.getElementById('sidebarUsername').textContent = 'User';
+            setTimeout(() => window.location.href = 'index.html', 2000);
+        }
+    } catch (error) {
+        console.error('Error loading user info:', error);
         document.getElementById('sidebarUsername').textContent = 'User';
         setTimeout(() => window.location.href = 'index.html', 2000);
-      }
-    } catch (error) {
-      console.error('Error loading user info:', error);
-      document.getElementById('sidebarUsername').textContent = 'User';
-      setTimeout(() => window.location.href = 'index.html', 2000);
     }
-  }
+}
 
 function setProfilePicture(event) {
     const file = event.target.files[0];
     if (!file) return;
-  
+
     const token = localStorage.getItem('token');
     if (!token) {
-      showAlert('Please log in to update your profile picture.', 'error');
-      return;
+        showAlert('Please log in to update your profile picture.', 'error');
+        return;
     }
-  
+
     // Immediately update the UI with the selected image (temporary)
     const profilePic = document.getElementById('userProfilePic');
     const profilePicDisplay = document.getElementById('userProfilePicDisplay');
     if (profilePic) profilePic.src = URL.createObjectURL(file);
     if (profilePicDisplay) profilePicDisplay.src = URL.createObjectURL(file);
-  
-    // Force backend URL and pre-flight check
-    const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://boxdome-app.herokuapp.com';
-    console.log('Forced Backend URL:', backendUrl);
-  
-    fetch(`${backendUrl}/`, { method: 'HEAD' })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Server unreachable. Status: ${response.status}`);
-        }
-        return true;
-      })
-      .catch(preFlightError => {
-        console.error('Pre-flight Check Failed:', preFlightError);
-        showAlert(`Server check failed: ${preFlightError.message}`, 'error');
-        if (profilePic) profilePic.src = 'https://via.placeholder.com/80';
-        if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80';
-        return false;
-      })
-      .then(isServerReachable => {
-        if (!isServerReachable) return;
-  
-        const formData = new FormData();
-        formData.append('profilePic', file);
-  
-        fetch(`${backendUrl}/api/update-profile-pic`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: formData
-        })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          if (data.message === 'Profile picture updated successfully') {
-            const newProfilePicUrl = data.profilePic; // Full URL from server
-            console.log('New Profile Pic URL from server:', newProfilePicUrl);
-  
-            // Update both profile picture elements with cache-busting
-            if (profilePic) {
-              profilePic.src = `${newProfilePicUrl}?t=${new Date().getTime()}`;
-              profilePic.onload = () => console.log('Profile image loaded:', profilePic.src);
-              profilePic.onerror = () => {
-                console.error('Profile image failed to load:', profilePic.src);
-                showAlert('Failed to load new profile picture. Check server connection.', 'error');
-                profilePic.src = 'https://via.placeholder.com/80';
-              };
-            }
-            if (profilePicDisplay) {
-              profilePicDisplay.src = `${newProfilePicUrl}?t=${new Date().getTime()}`;
-              profilePicDisplay.onload = () => console.log('Display image loaded:', profilePicDisplay.src);
-              profilePicDisplay.onerror = () => {
-                console.error('Display image failed to load:', profilePicDisplay.src);
-                showAlert('Failed to load new profile picture in sidebar.', 'error');
-                profilePicDisplay.src = 'https://via.placeholder.com/80';
-              };
-            }
-  
-            // Force reload of user info to persist on refresh
-            loadUserInfo().then(() => {
-              showAlert('Profile picture updated successfully!', 'success');
-            });
-          } else {
-            throw new Error(data.message || 'Invalid response from server.');
-          }
-        })
-        .catch(error => {
-          console.error('Error uploading profile picture:', error);
-          showAlert(`Failed to update profile picture on server. ${error.message}`, 'error');
-          if (profilePic) profilePic.src = 'https://via.placeholder.com/80';
-          if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80';
-        });
-      });
-  }
 
-// Dashboard: Toggle Edit Username
+    // Force backend URL and pre-flight check
+    const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://boxdome-app.onrender.com'; // Updated to Render URL
+    console.log('Forced Backend URL:', backendUrl);
+
+    fetch(`${backendUrl}/`, { method: 'HEAD' })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server unreachable. Status: ${response.status}`);
+            }
+            return true;
+        })
+        .catch(preFlightError => {
+            console.error('Pre-flight Check Failed:', preFlightError);
+            showAlert(`Server check failed: ${preFlightError.message}`, 'error');
+            if (profilePic) profilePic.src = 'https://via.placeholder.com/80';
+            if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80';
+            return false;
+        })
+        .then(isServerReachable => {
+            if (!isServerReachable) return;
+
+            const formData = new FormData();
+            formData.append('profilePic', file);
+
+            fetch(`${backendUrl}/api/update-profile-pic`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.message === 'Profile picture updated successfully') {
+                    const newProfilePicUrl = data.profilePic;
+                    console.log('New Profile Pic URL from server:', newProfilePicUrl);
+
+                    if (profilePic) {
+                        profilePic.src = `${newProfilePicUrl}?t=${new Date().getTime()}`;
+                        profilePic.onload = () => console.log('Profile image loaded:', profilePic.src);
+                        profilePic.onerror = () => {
+                            console.error('Profile image failed to load:', profilePic.src);
+                            showAlert('Failed to load new profile picture. Check server connection.', 'error');
+                            profilePic.src = 'https://via.placeholder.com/80';
+                        };
+                    }
+                    if (profilePicDisplay) {
+                        profilePicDisplay.src = `${newProfilePicUrl}?t=${new Date().getTime()}`;
+                        profilePicDisplay.onload = () => console.log('Display image loaded:', profilePicDisplay.src);
+                        profilePicDisplay.onerror = () => {
+                            console.error('Display image failed to load:', profilePicDisplay.src);
+                            showAlert('Failed to load new profile picture in sidebar.', 'error');
+                            profilePicDisplay.src = 'https://via.placeholder.com/80';
+                        };
+                    }
+
+                    loadUserInfo().then(() => {
+                        showAlert('Profile picture updated successfully!', 'success');
+                    });
+                } else {
+                    throw new Error(data.message || 'Invalid response from server.');
+                }
+            })
+            .catch(error => {
+                console.error('Error uploading profile picture:', error);
+                showAlert(`Failed to update profile picture on server. ${error.message}`, 'error');
+                if (profilePic) profilePic.src = 'https://via.placeholder.com/80';
+                if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80');
+            });
+        });
+}
+
 function toggleEditUsername() {
     const usernameInput = document.getElementById('usernameInput');
     const saveUsernameBtn = document.getElementById('saveUsernameBtn');
@@ -619,7 +613,6 @@ function toggleEditUsername() {
     }
 }
 
-// Dashboard: Save Username
 async function saveUsername() {
     const newUsername = document.getElementById('usernameInput').value.trim();
     const token = localStorage.getItem('token');
@@ -654,7 +647,6 @@ async function saveUsername() {
     }
 }
 
-// Dashboard: Load Wishlist
 async function loadWishlist() {
     const wishlistContainer = document.getElementById('wishlistMovies');
     wishlistContainer.innerHTML = '<p>Loading...</p>';
@@ -708,7 +700,6 @@ async function loadWishlist() {
     }
 }
 
-// Dashboard: Remove from Wishlist
 async function removeFromWishlist(movieId) {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -738,7 +729,6 @@ async function removeFromWishlist(movieId) {
     }
 }
 
-// Dashboard: Load Watch Later
 async function loadWatchLater() {
     const watchLaterContainer = document.getElementById('watchLaterMovies');
     watchLaterContainer.innerHTML = '<p>Loading...</p>';
@@ -792,7 +782,6 @@ async function loadWatchLater() {
     }
 }
 
-// Dashboard: Add to Watch Later
 async function addToWatchLater(movieId, title, img, subtitle, rating, overview) {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -824,7 +813,6 @@ async function addToWatchLater(movieId, title, img, subtitle, rating, overview) 
     }
 }
 
-// Dashboard: Remove from Watch Later
 async function removeFromWatchLater(movieId) {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -854,7 +842,6 @@ async function removeFromWatchLater(movieId) {
     }
 }
 
-// Dashboard: Load Admin Panel
 async function loadAdminPanel() {
     const userList = document.getElementById('userList');
     userList.innerHTML = '<p>Loading...</p>';
@@ -898,7 +885,6 @@ async function loadAdminPanel() {
     }
 }
 
-// Dashboard: Change Password
 const changePasswordForm = document.getElementById('changePasswordForm');
 if (changePasswordForm) {
     changePasswordForm.addEventListener('submit', async (e) => {
@@ -938,7 +924,6 @@ if (changePasswordForm) {
     });
 }
 
-// Dashboard: Change Font Size
 let fontSize = 16;
 function changeFontSize(action) {
     if (action === 'increase' && fontSize < 24) {
@@ -950,7 +935,6 @@ function changeFontSize(action) {
     document.body.style.fontSize = `${fontSize}px`;
 }
 
-// Dashboard: Close Settings Card
 function closeSettingsCard() {
     const settingsCard = document.getElementById('settingsCard');
     settingsCard.classList.add('closing');
@@ -960,7 +944,6 @@ function closeSettingsCard() {
     }, 500);
 }
 
-// Dashboard: Save Settings
 function saveSettings() {
     const theme = document.getElementById('themeSelect').value;
     localStorage.setItem('theme', theme);
@@ -969,7 +952,6 @@ function saveSettings() {
     showAlert('Settings saved successfully!', 'success');
 }
 
-// Dashboard: Apply Settings
 function applySettings() {
     const savedTheme = localStorage.getItem('theme') || 'system';
     const savedFontSize = localStorage.getItem('fontSize') || 16;
@@ -998,14 +980,12 @@ function applySettings() {
     }
 }
 
-// Dashboard: Logout
 function logout() {
     localStorage.removeItem('token');
     showAlert('Logout successful!', 'success');
     setTimeout(() => window.location.href = 'index.html', 2000);
 }
 
-// Dashboard: Add to Wishlist
 async function addToWishlist(movieId, title, img, subtitle, rating, overview) {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -1037,7 +1017,6 @@ async function addToWishlist(movieId, title, img, subtitle, rating, overview) {
     }
 }
 
-// Dashboard: Play Trailer
 async function playTrailer(movieId) {
     const trailerKey = await fetchMovieTrailer(movieId);
     if (trailerKey) {
@@ -1050,7 +1029,6 @@ async function playTrailer(movieId) {
     }
 }
 
-// Dashboard: Show Movie Details
 function showMovieDetails(id, title, img, subtitle, rating, overview) {
     const modal = document.getElementById('detailsModal');
     const detailsContainer = document.getElementById('movieDetails');
@@ -1064,7 +1042,6 @@ function showMovieDetails(id, title, img, subtitle, rating, overview) {
     modal.style.display = 'flex';
 }
 
-// Dashboard: Share Movie
 function shareMovie(movieId, title) {
     const shareLink = `https://www.themoviedb.org/movie/${movieId}`;
     navigator.clipboard.writeText(shareLink).then(() => {
@@ -1075,7 +1052,6 @@ function shareMovie(movieId, title) {
     });
 }
 
-// Dashboard: Show Download Options
 function showDownloadOptions(movieTitle) {
     const modal = document.getElementById('downloadOptionsModal');
     const titleElement = document.getElementById('downloadModalTitle');
@@ -1083,45 +1059,38 @@ function showDownloadOptions(movieTitle) {
     modal.style.display = 'flex';
 }
 
-// Dashboard: Show Download Options Coming Soon (Sidebar)
 function showDownloadOptionsComingSoon() {
     const modal = document.getElementById('comingSoonModal');
     modal.style.display = 'flex';
 }
 
-// Dashboard: Show Coming Soon
 function showComingSoon() {
     const modal = document.getElementById('comingSoonModal');
     modal.style.display = 'flex';
 }
 
-// Close Trailer Modal
 function closeModal() {
     const modal = document.getElementById('trailerModal');
     modal.style.display = 'none';
     document.getElementById('trailerPlayer').innerHTML = '';
 }
 
-// Close Details Modal
 function closeDetailsModal() {
     const modal = document.getElementById('detailsModal');
     modal.style.display = 'none';
     document.getElementById('movieDetails').innerHTML = '';
 }
 
-// Close Download Modal
 function closeDownloadModal() {
     const modal = document.getElementById('downloadOptionsModal');
     modal.style.display = 'none';
 }
 
-// Close Coming Soon Modal
 function closeComingSoonModal() {
     const modal = document.getElementById('comingSoonModal');
     modal.style.display = 'none';
 }
 
-// Index.html Functions
 function promptLogin(movieId, title, img, action) {
     localStorage.setItem('pendingAction', JSON.stringify({ movieId, title, img, action }));
     openAuthModal('login');
@@ -1179,7 +1148,6 @@ function scrollToSection(sectionId) {
             top: sectionPosition,
             behavior: 'smooth'
         });
-        // Close sidebar or menu on mobile
         if (window.innerWidth <= 768) {
             if (document.getElementById('sidebar')) {
                 toggleSidebar();
@@ -1194,7 +1162,6 @@ function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Updated refreshPage function to handle Home button behavior
 function refreshPage() {
     if (window.location.pathname.includes('index.html')) {
         window.location.reload();
@@ -1203,7 +1170,6 @@ function refreshPage() {
     }
 }
 
-// Dashboard: Refresh to Home
 function refreshToHome() {
     if (window.location.pathname.includes('dashboard.html')) {
         showSection('home');
