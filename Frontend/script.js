@@ -1,6 +1,6 @@
 // constants.js or at the top of your script
 const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.onrender.com/api'; // Updated to Render URL
-const TMDB_API_KEY = '4065c93a0ae09813d967f09814854947'; // Your new TMDB API key 
+const TMDB_API_KEY = '4065c93a0ae09813d967f09814854947'; // Your new TMDB API key
 
 let movieData = {};
 
