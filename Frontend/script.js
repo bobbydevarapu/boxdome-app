@@ -525,14 +525,8 @@ function setProfilePicture(event) {
         return;
     }
 
-    // Immediately update the UI with the selected image (temporary)
-    const profilePic = document.getElementById('userProfilePic');
-    const profilePicDisplay = document.getElementById('userProfilePicDisplay');
-    if (profilePic) profilePic.src = URL.createObjectURL(file);
-    if (profilePicDisplay) profilePicDisplay.src = URL.createObjectURL(file);
-
-    // Force backend URL and pre-flight check
-    const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://boxdome-app.onrender.com'; // Updated to Render URL
+    // Pre-flight check
+    const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://boxdome-app.onrender.com';
     console.log('Forced Backend URL:', backendUrl);
 
     fetch(`${backendUrl}/`, { method: 'HEAD' })
@@ -545,8 +539,6 @@ function setProfilePicture(event) {
         .catch(preFlightError => {
             console.error('Pre-flight Check Failed:', preFlightError);
             showAlert(`Server check failed: ${preFlightError.message}`, 'error');
-            if (profilePic) profilePic.src = 'https://via.placeholder.com/80';
-            if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80';
             return false;
         })
         .then(isServerReachable => {
@@ -567,12 +559,16 @@ function setProfilePicture(event) {
                 return response.json();
             })
             .then(data => {
-                if (data.message === 'Profile picture updated successfully') {
+                if (data.message === 'Profile picture updated') {
                     const newProfilePicUrl = data.profilePic;
                     console.log('New Profile Pic URL from server:', newProfilePicUrl);
 
+                    const profilePic = document.getElementById('userProfilePic');
+                    const profilePicDisplay = document.getElementById('userProfilePicDisplay');
+
+                    // Update UI only after successful server response
                     if (profilePic) {
-                        profilePic.src = `${newProfilePicUrl}?t=${new Date().getTime()}`;
+                        profilePic.src = newProfilePicUrl;
                         profilePic.onload = () => console.log('Profile image loaded:', profilePic.src);
                         profilePic.onerror = () => {
                             console.error('Profile image failed to load:', profilePic.src);
@@ -581,7 +577,7 @@ function setProfilePicture(event) {
                         };
                     }
                     if (profilePicDisplay) {
-                        profilePicDisplay.src = `${newProfilePicUrl}?t=${new Date().getTime()}`;
+                        profilePicDisplay.src = newProfilePicUrl;
                         profilePicDisplay.onload = () => console.log('Display image loaded:', profilePicDisplay.src);
                         profilePicDisplay.onerror = () => {
                             console.error('Display image failed to load:', profilePicDisplay.src);
@@ -590,6 +586,7 @@ function setProfilePicture(event) {
                         };
                     }
 
+                    // Reload user info to sync with server
                     loadUserInfo().then(() => {
                         showAlert('Profile picture updated successfully!', 'success');
                     });
@@ -599,7 +596,10 @@ function setProfilePicture(event) {
             })
             .catch(error => {
                 console.error('Error uploading profile picture:', error);
+                const profilePic = document.getElementById('userProfilePic');
+                const profilePicDisplay = document.getElementById('userProfilePicDisplay');
                 showAlert(`Failed to update profile picture on server. ${error.message}`, 'error');
+                // Revert to current or default only if server fails
                 if (profilePic) profilePic.src = 'https://via.placeholder.com/80';
                 if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80';
             });
