@@ -33,6 +33,8 @@ if (process.env.NODE_ENV !== 'production') {
 app.use(express.json());
 // CORS: allow production domain and common local dev origins (e.g. Live Server at 127.0.0.1:5500)
 const allowedOrigins = [
+  // Render primary and alternate domains (add any others you use)
+  'https://boxdome.onrender.com',
   'https://boxdome-app.onrender.com',
   // local development hosts (add more as needed)
   'http://localhost:5000',
