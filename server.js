@@ -31,9 +31,27 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Middleware
 app.use(express.json());
+// CORS: allow production domain and common local dev origins (e.g. Live Server at 127.0.0.1:5500)
+const allowedOrigins = [
+  'https://boxdome-app.onrender.com',
+  // local development hosts (add more as needed)
+  'http://localhost:5000',
+  'http://127.0.0.1:5500',
+  'http://localhost:5500'
+];
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? 'https://boxdome-app.onrender.com' : 'http://localhost:5000',
-  credentials: true
+  origin: function(origin, callback) {
+    // allow requests with no origin (e.g., mobile apps, curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('CORS policy: This origin is not allowed: ' + origin));
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
 app.use(express.static(path.join(__dirname, 'Frontend')));
 
@@ -100,7 +118,7 @@ const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  profilePic: { type: String, default: 'https://via.placeholder.com/40' },
+  profilePic: { type: String, default: 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%2328343d%22/%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%236b7780%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2212%22%3ENo%3C/text%3E%3C/svg%3E' },
 });
 const User = mongoose.model('User', userSchema);
 
@@ -370,4 +388,14 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('CORS allowed origins (dev):', [
+      'https://boxdome-app.onrender.com',
+      'http://localhost:5000',
+      'http://127.0.0.1:5500',
+      'http://localhost:5500'
+    ]);
+  }
+});

@@ -1,6 +1,22 @@
 // constants.js or at the top of your script
-const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://boxdome-app.onrender.com/api'; // Updated to Render URL
+// Allow overriding the backend URL from the page (useful for local dev),
+// otherwise detect common local hostnames (localhost, 127.0.0.1) to point to local API.
+const _host = window.location.hostname;
+const DEFAULT_PROD = 'https://boxdome-app.onrender.com/api';
+const DEFAULT_LOCAL = 'http://localhost:5000/api';
+const BACKEND_URL = (function() {
+    if (window.__BACKEND_URL__) return window.__BACKEND_URL__;
+    if (_host === 'localhost' || _host === '127.0.0.1' || _host === '::1') return DEFAULT_LOCAL;
+    return DEFAULT_PROD;
+})();
 const TMDB_API_KEY = '4065c93a0ae09813d967f09814854947'; // Your new TMDB API key
+// small inline SVG placeholder (data URI) to avoid external placeholder requests failing
+const PLACEHOLDER_IMAGE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="250" viewBox="0 0 200 250">
+         <rect width="100%" height="100%" fill="#28343d"/>
+         <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7780" font-family="Arial, Helvetica, sans-serif" font-size="14">No Image</text>
+    </svg>`
+);
 
 let movieData = {};
 
@@ -42,7 +58,7 @@ async function fetchMovies(category) {
             title: movie.title,
             subtitle: `${new Date(movie.release_date).getFullYear()} • Genre`,
             rating: movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A',
-            img: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 'https://via.placeholder.com/200x250?text=No+Image',
+            img: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : PLACEHOLDER_IMAGE,
             overview: movie.overview || 'No overview available.',
             category: category
         }));
@@ -180,6 +196,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Accessibility & UI init: set aria attributes for favorite buttons and hamburger
+    const hearts = document.querySelectorAll('.icon-btn.favorite-btn');
+    hearts.forEach(h => {
+        if (!h.hasAttribute('aria-pressed')) h.setAttribute('aria-pressed', 'false');
+        // Ensure click works when elements are added dynamically
+        h.addEventListener('click', (ev) => {
+            // prevent double-handling if inline onclick exists
+            ev.stopPropagation();
+        }, { passive: true });
+    });
+
+    const hamburger = document.querySelector('.hamburger');
+    if (hamburger && !hamburger.hasAttribute('aria-expanded')) {
+        hamburger.setAttribute('aria-expanded', 'false');
+    }
+
     if (signupForm) {
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -188,7 +220,76 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Load movies (for both index.html and dashboard.html)
+// Toggle mobile nav menu
+// Toggle mobile nav menu
+function toggleMenu() {
+    const navLinks = document.getElementById('navLinks');
+    const hamburger = document.querySelector('.hamburger');
+    if (!navLinks) return;
+    navLinks.classList.toggle('active');
+    // prevent body scroll when menu open
+    document.body.classList.toggle('no-scroll');
+    // update aria-expanded for accessibility
+    if (hamburger) {
+        const expanded = navLinks.classList.contains('active');
+        hamburger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }
+}
+
+// Close mobile menu (helper)
+function closeMenuIfMobile() {
+    const navLinks = document.getElementById('navLinks');
+    if (!navLinks) return;
+    if (window.innerWidth <= 768 && navLinks.classList.contains('active')) {
+        navLinks.classList.remove('active');
+        document.body.classList.remove('no-scroll');
+    }
+}
+
+// Close menu when a nav button is clicked on mobile
+document.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!target) return;
+    // if a nav button or link inside navLinks is clicked, close the menu on mobile
+    const navLinks = document.getElementById('navLinks');
+    if (navLinks && navLinks.contains(target)) {
+        if (target.closest('.nav-btn') || target.tagName === 'A') {
+            closeMenuIfMobile();
+        }
+    }
+});
+
+// Auth modal controls
+function openAuthModal(mode = 'login') {
+    const modal = document.getElementById('authModal');
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    if (mode === 'signup') {
+        if (signupForm) signupForm.style.display = 'block';
+        if (loginForm) loginForm.style.display = 'none';
+    } else {
+        if (loginForm) loginForm.style.display = 'block';
+        if (signupForm) signupForm.style.display = 'none';
+    }
+    // close mobile menu if open
+    closeMenuIfMobile();
+}
+
+function closeAuthModal() {
+    const modal = document.getElementById('authModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+}
+
+function showSignup() {
+    openAuthModal('signup');
+}
+
+function showLogin() {
+    openAuthModal('login');
+}
 function loadMovies(containerId, movieList) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -200,7 +301,7 @@ function loadMovies(containerId, movieList) {
         const card = document.createElement('div');
         card.className = 'movie-card';
         card.innerHTML = `
-            <img src="${movie.img}" alt="${movie.title}">
+            <img src="${movie.img}" alt="${movie.title}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMAGE}';">
             <h3>${movie.title}</h3>
             <p class="subtitle">${movie.subtitle}</p>
             <div class="info">
@@ -264,12 +365,12 @@ async function searchMoviesIndex() {
             for (const movie of movies.results) {
                 const card = document.createElement('div');
                 card.className = 'movie-card';
-                const img = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 'https://via.placeholder.com/200x250?text=No+Image';
+                const img = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : PLACEHOLDER_IMAGE;
                 const subtitle = movie.release_date ? new Date(movie.release_date).getFullYear() : 'N/A';
                 const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
                 const overview = movie.overview || 'No overview available.';
                 card.innerHTML = `
-                    <img src="${img}" alt="${movie.title}">
+                    <img src="${img}" alt="${movie.title}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMAGE}';">
                     <h3>${movie.title}</h3>
                     <p class="subtitle">${subtitle} • Genre</p>
                     <div class="info">
@@ -335,12 +436,12 @@ async function searchMovies() {
             for (const movie of movies.results) {
                 const card = document.createElement('div');
                 card.className = 'movie-card';
-                const img = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 'https://via.placeholder.com/200x250?text=No+Image';
+                const img = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : PLACEHOLDER_IMAGE;
                 const subtitle = movie.release_date ? new Date(movie.release_date).getFullYear() : 'N/A';
                 const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
                 const overview = movie.overview || 'No overview available.';
                 card.innerHTML = `
-                    <img src="${img}" alt="${movie.title}">
+                    <img src="${img}" alt="${movie.title}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMAGE}';">
                     <h3>${movie.title}</h3>
                     <p class="subtitle">${subtitle} • Genre</p>
                     <div class="info">
@@ -379,13 +480,24 @@ function toggleSidebar() {
     console.log("Toggling sidebar");
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.querySelector('.main-content');
+    const hamburger = document.querySelector('.hamburger');
     const isMobile = window.innerWidth <= 768;
 
-    if (sidebar) {
-        sidebar.classList.toggle('active');
-        if (!isMobile) {
-            mainContent.classList.toggle('shifted');
-        }
+    if (!sidebar) return;
+
+    const willBeActive = !sidebar.classList.contains('active');
+    sidebar.classList.toggle('active');
+
+    // For mobile, prevent background scroll when sidebar is open
+    if (isMobile) {
+        document.body.classList.toggle('no-scroll', willBeActive);
+    } else if (mainContent) {
+        mainContent.classList.toggle('shifted');
+    }
+
+    // Update accessible state on the hamburger
+    if (hamburger) {
+        hamburger.setAttribute('aria-expanded', willBeActive ? 'true' : 'false');
     }
 }
 
@@ -406,13 +518,14 @@ function navigateToDashboard() {
 function showSection(sectionId) {
     console.log(`Showing section: ${sectionId}`);
     const sections = document.querySelectorAll('.content-section');
+    // Hide all sections using the .hidden utility so it honors the CSS !important rule
     sections.forEach(section => {
-        section.style.display = 'none';
+        section.classList.add('hidden');
     });
 
     const activeSection = document.getElementById(sectionId);
     if (activeSection) {
-        activeSection.style.display = 'block';
+        activeSection.classList.remove('hidden');
     }
 
     // Load data for specific sections
@@ -467,20 +580,23 @@ async function loadUserInfo() {
 
             const userProfilePic = document.getElementById('userProfilePic');
             const userProfilePicDisplay = document.getElementById('userProfilePicDisplay');
-            if (userProfilePic && data.profilePic) {
-                userProfilePic.src = `${data.profilePic}?t=${new Date().getTime()}`; // Cache busting
+            // Prefer server-provided profile picture; fall back to inline PLACEHOLDER_IMAGE
+            if (userProfilePic) {
+                const picUrl = data.profilePic ? `${data.profilePic}?t=${new Date().getTime()}` : PLACEHOLDER_IMAGE;
+                userProfilePic.src = picUrl; // Cache bust when server URL present
                 userProfilePic.onload = () => console.log('Profile pic loaded in profile:', userProfilePic.src);
                 userProfilePic.onerror = () => {
                     console.error('Failed to load profile pic in profile:', userProfilePic.src);
-                    userProfilePic.src = 'https://via.placeholder.com/80';
+                    userProfilePic.src = PLACEHOLDER_IMAGE;
                 };
             }
-            if (userProfilePicDisplay && data.profilePic) {
-                userProfilePicDisplay.src = `${data.profilePic}?t=${new Date().getTime()}`; // Cache busting
+            if (userProfilePicDisplay) {
+                const displayUrl = data.profilePic ? `${data.profilePic}?t=${new Date().getTime()}` : PLACEHOLDER_IMAGE;
+                userProfilePicDisplay.src = displayUrl; // Cache bust when server URL present
                 userProfilePicDisplay.onload = () => console.log('Profile pic loaded in sidebar:', userProfilePicDisplay.src);
                 userProfilePicDisplay.onerror = () => {
                     console.error('Failed to load profile pic in sidebar:', userProfilePicDisplay.src);
-                    userProfilePicDisplay.src = 'https://via.placeholder.com/80';
+                    userProfilePicDisplay.src = PLACEHOLDER_IMAGE;
                 };
             }
 
@@ -525,11 +641,12 @@ function setProfilePicture(event) {
         return;
     }
 
-    // Pre-flight check
-    const backendUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://boxdome-app.onrender.com';
-    console.log('Forced Backend URL:', backendUrl);
+    // Use BACKEND_URL to derive the server base (remove trailing /api if present)
+    const SERVER_BASE = BACKEND_URL.replace(/\/api\/?$/i, '');
+    console.log('Using server base for upload:', SERVER_BASE);
 
-    fetch(`${backendUrl}/`, { method: 'HEAD' })
+    // Pre-flight check
+    fetch(`${SERVER_BASE}/`, { method: 'HEAD' })
         .then(response => {
             if (!response.ok) {
                 throw new Error(`Server unreachable. Status: ${response.status}`);
@@ -547,7 +664,7 @@ function setProfilePicture(event) {
             const formData = new FormData();
             formData.append('profilePic', file);
 
-            fetch(`${backendUrl}/api/update-profile-pic`, {
+            fetch(`${SERVER_BASE}/api/update-profile-pic`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
@@ -573,7 +690,7 @@ function setProfilePicture(event) {
                         profilePic.onerror = () => {
                             console.error('Profile image failed to load:', profilePic.src);
                             showAlert('Failed to load new profile picture. Check server connection.', 'error');
-                            profilePic.src = 'https://via.placeholder.com/80';
+                            profilePic.src = PLACEHOLDER_IMAGE;
                         };
                     }
                     if (profilePicDisplay) {
@@ -582,7 +699,7 @@ function setProfilePicture(event) {
                         profilePicDisplay.onerror = () => {
                             console.error('Display image failed to load:', profilePicDisplay.src);
                             showAlert('Failed to load new profile picture in sidebar.', 'error');
-                            profilePicDisplay.src = 'https://via.placeholder.com/80';
+                            profilePicDisplay.src = PLACEHOLDER_IMAGE;
                         };
                     }
 
@@ -600,8 +717,8 @@ function setProfilePicture(event) {
                 const profilePicDisplay = document.getElementById('userProfilePicDisplay');
                 showAlert(`Failed to update profile picture on server. ${error.message}`, 'error');
                 // Revert to current or default only if server fails
-                if (profilePic) profilePic.src = 'https://via.placeholder.com/80';
-                if (profilePicDisplay) profilePicDisplay.src = 'https://via.placeholder.com/80';
+                if (profilePic) profilePic.src = PLACEHOLDER_IMAGE;
+                if (profilePicDisplay) profilePicDisplay.src = PLACEHOLDER_IMAGE;
             });
         });
 }
@@ -687,7 +804,7 @@ async function loadWishlist() {
                 const card = document.createElement('div');
                 card.className = 'movie-card';
                 card.innerHTML = `
-                    <img src="${movie.movieImg}" alt="${movie.movieTitle}">
+                    <img src="${movie.movieImg}" alt="${movie.movieTitle}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMAGE}';">
                     <h3>${movie.movieTitle}</h3>
                     <p class="subtitle">${'N/A'} • Genre</p>
                     <div class="info">
@@ -771,7 +888,7 @@ async function loadWatchLater() {
                 const card = document.createElement('div');
                 card.className = 'movie-card';
                 card.innerHTML = `
-                    <img src="${movie.movieImg}" alt="${movie.movieTitle}">
+                    <img src="${movie.movieImg}" alt="${movie.movieTitle}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMAGE}';">
                     <h3>${movie.movieTitle}</h3>
                     <p class="subtitle">${'N/A'} • Genre</p>
                     <div class="info">
@@ -985,17 +1102,10 @@ function applySettings() {
     }
     document.body.style.fontSize = `${fontSize}px`;
 
-    if (savedTheme === 'dark') {
-        document.body.classList.remove('light-theme');
-    } else if (savedTheme === 'light') {
-        document.body.classList.add('light-theme');
-    } else {
-        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.body.classList.remove('light-theme');
-        } else {
-            document.body.classList.add('light-theme');
-        }
-    }
+    // Theme preference is kept as 'system' by default. We will not toggle a
+    // `body.light-theme` class here so the dashboard follows the OS/browser
+    // color-scheme via CSS media queries. The select only stores the user's
+    // preference but dashboard appearance defaults to the system setting.
 
     const themeSelect = document.getElementById('themeSelect');
     if (themeSelect) {
@@ -1030,8 +1140,33 @@ async function addToWishlist(movieId, title, img, subtitle, rating, overview) {
         const data = await response.json();
         if (response.ok) {
             showAlert(`Successfully added "${title}" to favorites!`, 'success');
-            if (document.getElementById('myWishlist') && document.getElementById('myWishlist').style.display === 'block') {
-                loadWishlist();
+            // Navigate to wishlist so the user sees the updated favorites immediately
+            if (document.getElementById('myWishlist')) {
+                showSection('myWishlist');
+                // give showSection a moment to set up, then load
+                setTimeout(() => loadWishlist(), 150);
+            }
+            // If the wishlist section is currently visible, reload it.
+            const myWishlistEl = document.getElementById('myWishlist');
+            if (myWishlistEl) {
+                const style = window.getComputedStyle(myWishlistEl);
+                if (style && style.display !== 'none') {
+                    loadWishlist();
+                }
+            }
+
+            // Update heart buttons in the UI to reflect favorited state
+            try {
+                const hearts = document.querySelectorAll('.icon-btn.favorite-btn');
+                hearts.forEach(h => {
+                    const hCard = h.closest('.movie-card');
+                    if (hCard && hCard.querySelector('h3')?.textContent === title) {
+                        h.classList.add('favorited');
+                        h.setAttribute('aria-pressed', 'true');
+                    }
+                });
+            } catch (uiErr) {
+                console.warn('Failed to update heart UI state:', uiErr);
             }
         } else {
             showAlert(data.message || 'Failed to add to wishlist.', 'error');
@@ -1039,6 +1174,46 @@ async function addToWishlist(movieId, title, img, subtitle, rating, overview) {
     } catch (error) {
         console.error('Error adding to wishlist:', error);
         showAlert('Failed to add to wishlist. Please try again later.', 'error');
+    }
+}
+
+// Toggle favorite from UI heart buttons (works for static and dynamic cards)
+// Accepts the clicked element and optional movie identifier/title.
+// It will derive missing metadata (img, subtitle, rating, overview) from the DOM when possible.
+async function toggleFavorite(el, movieIdentifier) {
+    try {
+        if (!el) return;
+        const token = localStorage.getItem('token');
+        // If user not logged in, prompt login and save pending action
+        if (!token) {
+            const card = el.closest('.movie-card');
+            const title = movieIdentifier || (card ? card.querySelector('h3')?.textContent : 'Untitled');
+            const img = card ? card.querySelector('img')?.src : PLACEHOLDER_IMAGE;
+            localStorage.setItem('pendingAction', JSON.stringify({ movieId: movieIdentifier || title, title, img, action: 'wishlist' }));
+            promptLogin();
+            return;
+        }
+
+        const card = el.closest('.movie-card');
+        const title = movieIdentifier || (card ? card.querySelector('h3')?.textContent : 'Untitled');
+        const img = card ? card.querySelector('img')?.src : PLACEHOLDER_IMAGE;
+        const subtitle = card ? (card.querySelector('.subtitle')?.textContent || `${new Date().getFullYear()} • Genre`) : `${new Date().getFullYear()} • Genre`;
+        const rating = card ? (card.querySelector('.rating')?.textContent || 'N/A') : 'N/A';
+        const overview = card ? (card.querySelector('.overview')?.textContent || 'No overview available.') : 'No overview available.';
+
+        // If already favorited, remove; otherwise add.
+        const isFav = el.classList.contains('favorited');
+        if (isFav) {
+            // Attempt to remove by using the title/identifier as movieId
+            await removeFromWishlist(movieIdentifier || title);
+            el.classList.remove('favorited');
+        } else {
+            await addToWishlist(movieIdentifier || title, title, img, subtitle, rating, overview);
+            el.classList.add('favorited');
+        }
+    } catch (error) {
+        console.error('Error toggling favorite:', error);
+        showAlert('Failed to update favorites. Please try again.', 'error');
     }
 }
 
@@ -1060,7 +1235,7 @@ function showMovieDetails(id, title, img, subtitle, rating, overview) {
     const modal = document.getElementById('detailsModal');
     const detailsContainer = document.getElementById('movieDetails');
     detailsContainer.innerHTML = `
-        <img src="${img}" alt="${title}">
+    <img src="${img}" alt="${title}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMAGE}';">
         <h3>${title}</h3>
         <p>${subtitle}</p>
         <p>Rating: ${rating}</p>

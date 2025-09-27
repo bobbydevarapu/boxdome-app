@@ -7,14 +7,35 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dashboard.css">
-    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
     <header>
         <div class="hamburger" onclick="toggleSidebar()">
             <i class="fas fa-bars"></i>
         </div>
-        <div class="logo logo-animate">BoxDome</div>
+        <div class="brand">
+            <div class="brand-icon" aria-hidden="true">
+                <!-- Compact SVG film clapper icon -->
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="28" height="28" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#00ddeb" />
+                            <stop offset="100%" stop-color="#6b33ff" />
+                        </linearGradient>
+                        <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#ff3366" />
+                            <stop offset="100%" stop-color="#ff8a8a" />
+                        </linearGradient>
+                    </defs>
+                    <path d="M3 13h18v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z" fill="url(#g1)"></path>
+                    <path d="M3 13l4-8h10l4 8" fill="url(#g2)" opacity="0.95"></path>
+                </svg>
+            </div>
+            <span class="brand-text">
+                <span class="brand-name">BoxDome</span>
+            </span>
+        </div>
         <div class="nav-links">
             <button class="nav-btn nav-btn-home" onclick="refreshToHome()"><i class="fas fa-home"></i> Home</button>
             <button class="nav-btn nav-btn-dashboard" onclick="toggleSidebar()"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
@@ -29,9 +50,9 @@
         </div>
         <div class="user-info">
             <label for="profilePicInput">
-                <img src="https://via.placeholder.com/80" alt="User Profile Picture" id="userProfilePic" class="profile-pic">
+                <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2280%22%20height%3D%2280%22%20viewBox%3D%220%200%2080%2080%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%2328343d%22/%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%236b7780%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2210%22%3ENo%20Image%3C/text%3E%3C/svg%3E" alt="User Profile Picture" id="userProfilePic" class="profile-pic">
             </label>
-            <input type="file" id="profilePicInput" accept="image/*" style="display: none;" onchange="setProfilePicture(event)">
+            <input type="file" id="profilePicInput" accept="image/*" class="hidden" onchange="setProfilePicture(event)">
             <h4 id="sidebarUsername">Loading...</h4>
         </div>
         <div class="sidebar-content">
@@ -39,8 +60,7 @@
             <button class="sidebar-btn" onclick="showSection('userProfile')"><i class="fas fa-user"></i> User Profile</button>
             <button class="sidebar-btn" onclick="showSection('myWishlist')"><i class="fas fa-heart"></i> My Wishlist</button>
             <button class="sidebar-btn" onclick="showDownloadOptionsComingSoon()"><i class="fas fa-download"></i> Download</button>
-            <button class="sidebar-btn" onclick="showSection('changePassword')"><i class="fas fa-lock"></i> Change Password</button>
-            <button class="sidebar-btn" onclick="showSection('settings')"><i class="fas fa-cog"></i> Settings</button>
+            <!-- Change Password and Settings removed from sidebar per request -->
             <button class="sidebar-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
     </div>
@@ -56,11 +76,11 @@
             <div class="movie-list" id="latestMovies">
                 <div class="movie-card">
                     <div class="movie-card-top">
-                        <img src="https://via.placeholder.com/200x250" alt="Movie Poster">
+                        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22200%22%20height%3D%22250%22%20viewBox%3D%220%200%20200%20250%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%2328343d%22/%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%236b7780%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2214%22%3ENo%20Image%3C/text%3E%3C/svg%3E" alt="Movie Poster">
                     </div>
                     <div class="card-top-icons">
-                        <button class="icon-btn favorite-btn" onclick="toggleFavorite(this, 'A Minecraft Movie')"><i class="fas fa-heart"></i></button>
-                        <button class="icon-btn share-btn" onclick="shareMovie(this, 'A Minecraft Movie')"><i class="fas fa-share-alt"></i></button>
+                        <button class="icon-btn favorite-btn" aria-label="Add A Minecraft Movie to favorites" onclick="toggleFavorite(this, 'A Minecraft Movie')"><i class="fas fa-heart" aria-hidden="true"></i></button>
+                        <button class="icon-btn share-btn" aria-label="Share A Minecraft Movie" onclick="shareMovie(this, 'A Minecraft Movie')"><i class="fas fa-share-alt" aria-hidden="true"></i></button>
                     </div>
                     <h3>A Minecraft Movie</h3>
                     <div class="subtitle">2025 - Genre</div>
@@ -69,7 +89,7 @@
                     </div>
                     <div class="buttons">
                         <button class="trailer-btn" onclick="showTrailer('https://www.youtube.com/embed/dQw4w9WgXcQ')"><i class="fas fa-play"></i> Trailer</button>
-                        <button class="details-btn" onclick="showDetails('A Minecraft Movie', '2025', '6.1', 'https://via.placeholder.com/200x250')"><i class="fas fa-info-circle"></i> Details</button>
+                        <button class="details-btn" onclick="showDetails('A Minecraft Movie', '2025', '6.1', 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22200%22%20height%3D%22250%22%20viewBox%3D%220%200%20200%20250%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%2328343d%22/%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%236b7780%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2214%22%3ENo%20Image%3C/text%3E%3C/svg%3E')"><i class="fas fa-info-circle"></i> Details</button>
                         <button class="download-btn" onclick="showDownloadOptions('A Minecraft Movie')"><i class="fas fa-download"></i> Download</button>
                     </div>
                 </div>
@@ -80,11 +100,11 @@
             <div class="movie-list" id="hollywoodMovies">
                 <div class="movie-card">
                     <div class="movie-card-top">
-                        <img src="https://via.placeholder.com/200x250" alt="Movie Poster">
+                        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22200%22%20height%3D%22250%22%20viewBox%3D%220%200%20200%20250%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%2328343d%22/%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%236b7780%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2214%22%3ENo%20Image%3C/text%3E%3C/svg%3E" alt="Movie Poster">
                     </div>
                     <div class="card-top-icons">
-                        <button class="icon-btn favorite-btn" onclick="toggleFavorite(this, 'In the Lost Lands')"><i class="fas fa-heart"></i></button>
-                        <button class="icon-btn share-btn" onclick="shareMovie(this, 'In the Lost Lands')"><i class="fas fa-share-alt"></i></button>
+                        <button class="icon-btn favorite-btn" aria-label="Add In the Lost Lands to favorites" onclick="toggleFavorite(this, 'In the Lost Lands')"><i class="fas fa-heart" aria-hidden="true"></i></button>
+                        <button class="icon-btn share-btn" aria-label="Share In the Lost Lands" onclick="shareMovie(this, 'In the Lost Lands')"><i class="fas fa-share-alt" aria-hidden="true"></i></button>
                     </div>
                     <h3>In the Lost Lands</h3>
                     <div class="subtitle">2025 - Genre</div>
@@ -93,7 +113,7 @@
                     </div>
                     <div class="buttons">
                         <button class="trailer-btn" onclick="showTrailer('https://www.youtube.com/embed/dQw4w9WgXcQ')"><i class="fas fa-play"></i> Trailer</button>
-                        <button class="details-btn" onclick="showDetails('In the Lost Lands', '2025', '6.2', 'https://via.placeholder.com/200x250')"><i class="fas fa-info-circle"></i> Details</button>
+                        <button class="details-btn" onclick="showDetails('In the Lost Lands', '2025', '6.2', 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22200%22%20height%3D%22250%22%20viewBox%3D%220%200%20200%20250%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%2328343d%22/%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%236b7780%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2214%22%3ENo%20Image%3C/text%3E%3C/svg%3E')"> <i class="fas fa-info-circle"></i> Details</button>
                         <button class="download-btn" onclick="showDownloadOptions('In the Lost Lands')"><i class="fas fa-download"></i> Download</button>
                     </div>
                 </div>
@@ -104,11 +124,11 @@
             <div class="movie-list" id="bollywoodMovies">
                 <div class="movie-card">
                     <div class="movie-card-top">
-                        <img src="https://via.placeholder.com/200x250" alt="Movie Poster">
+                        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22200%22%20height%3D%22250%22%20viewBox%3D%220%200%20200%20250%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%2328343d%22/%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%236b7780%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2214%22%3ENo%20Image%3C/text%3E%3C/svg%3E" alt="Movie Poster">
                     </div>
                     <div class="card-top-icons">
-                        <button class="icon-btn favorite-btn" onclick="toggleFavorite(this, 'Novocaine')"><i class="fas fa-heart"></i></button>
-                        <button class="icon-btn share-btn" onclick="shareMovie(this, 'Novocaine')"><i class="fas fa-share-alt"></i></button>
+                        <button class="icon-btn favorite-btn" aria-label="Add Novocaine to favorites" onclick="toggleFavorite(this, 'Novocaine')"><i class="fas fa-heart" aria-hidden="true"></i></button>
+                        <button class="icon-btn share-btn" aria-label="Share Novocaine" onclick="shareMovie(this, 'Novocaine')"><i class="fas fa-share-alt" aria-hidden="true"></i></button>
                     </div>
                     <h3>Novocaine</h3>
                     <div class="subtitle">2025 - Genre</div>
@@ -117,7 +137,7 @@
                     </div>
                     <div class="buttons">
                         <button class="trailer-btn" onclick="showTrailer('https://www.youtube.com/embed/dQw4w9WgXcQ')"><i class="fas fa-play"></i> Trailer</button>
-                        <button class="details-btn" onclick="showDetails('Novocaine', '2025', '6.9', 'https://via.placeholder.com/200x250')"><i class="fas fa-info-circle"></i> Details</button>
+                        <button class="details-btn" onclick="showDetails('Novocaine', '2025', '6.9', 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22200%22%20height%3D%22250%22%20viewBox%3D%220%200%20200%20250%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%2328343d%22/%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%236b7780%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2214%22%3ENo%20Image%3C/text%3E%3C/svg%3E')"> <i class="fas fa-info-circle"></i> Details</button>
                         <button class="download-btn" onclick="showDownloadOptions('Novocaine')"><i class="fas fa-download"></i> Download</button>
                     </div>
                 </div>
@@ -128,11 +148,11 @@
             <div class="movie-list" id="tollywoodMovies">
                 <div class="movie-card">
                     <div class="movie-card-top">
-                        <img src="https://via.placeholder.com/200x250" alt="Movie Poster">
+                        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22200%22%20height%3D%22250%22%20viewBox%3D%220%200%20200%20250%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%2328343d%22/%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%236b7780%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2214%22%3ENo%20Image%3C/text%3E%3C/svg%3E" alt="Movie Poster">
                     </div>
                     <div class="card-top-icons">
-                        <button class="icon-btn favorite-btn" onclick="toggleFavorite(this, 'Carjackers')"><i class="fas fa-heart"></i></button>
-                        <button class="icon-btn share-btn" onclick="shareMovie(this, 'Carjackers')"><i class="fas fa-share-alt"></i></button>
+                        <button class="icon-btn favorite-btn" aria-label="Add Carjackers to favorites" onclick="toggleFavorite(this, 'Carjackers')"><i class="fas fa-heart" aria-hidden="true"></i></button>
+                        <button class="icon-btn share-btn" aria-label="Share Carjackers" onclick="shareMovie(this, 'Carjackers')"><i class="fas fa-share-alt" aria-hidden="true"></i></button>
                     </div>
                     <h3>Carjackers</h3>
                     <div class="subtitle">2025 - Genre</div>
@@ -141,7 +161,7 @@
                     </div>
                     <div class="buttons">
                         <button class="trailer-btn" onclick="showTrailer('https://www.youtube.com/embed/dQw4w9WgXcQ')"><i class="fas fa-play"></i> Trailer</button>
-                        <button class="details-btn" onclick="showDetails('Carjackers', '2025', '6.2', 'https://via.placeholder.com/200x250')"><i class="fas fa-info-circle"></i> Details</button>
+                        <button class="details-btn" onclick="showDetails('Carjackers', '2025', '6.2', 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22200%22%20height%3D%22250%22%20viewBox%3D%220%200%20200%20250%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22%2328343d%22/%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%236b7780%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2214%22%3ENo%20Image%3C/text%3E%3C/svg%3E')"> <i class="fas fa-info-circle"></i> Details</button>
                         <button class="download-btn" onclick="showDownloadOptions('Carjackers')"><i class="fas fa-download"></i> Download</button>
                     </div>
                 </div>
@@ -149,12 +169,12 @@
             </div>
         </div>
 
-        <div class="content-section" id="searchResults" style="display: none;">
+    <div class="content-section hidden" id="searchResults">
             <h2>Search Results</h2>
             <div class="movie-list" id="searchResultsList"></div>
         </div>
 
-        <div class="content-section" id="userProfile" style="display: none;">
+    <div class="content-section hidden" id="userProfile">
             <div class="profile-card">
                 <h2>User Profile</h2>
                 <div class="profile-pic-container">
@@ -162,19 +182,19 @@
                 </div>
                 <p>Username: <span id="usernameDisplay">Loading...</span>
                     <button onclick="toggleEditUsername()" class="edit-btn">Edit</button>
-                    <input type="text" id="usernameInput" style="display: none;" placeholder="New Username">
-                    <button id="saveUsernameBtn" style="display: none;" onclick="saveUsername()">Save</button>
+                    <input type="text" id="usernameInput" class="hidden" placeholder="New Username">
+                    <button id="saveUsernameBtn" class="hidden" onclick="saveUsername()">Save</button>
                 </p>
                 <p>Email: <span id="emailDisplay">Loading...</span></p>
             </div>
         </div>
 
-        <div class="content-section" id="myWishlist" style="display: none;">
+    <div class="content-section hidden" id="myWishlist">
             <h2>My Wishlist</h2>
             <div class="movie-list" id="wishlistMovies"></div>
         </div>
 
-        <div class="content-section" id="changePassword" style="display: none;">
+    <div class="content-section hidden" id="changePassword">
             <h2>Change Password</h2>
             <form id="changePasswordForm">
                 <input type="password" id="currentPassword" placeholder="Current Password" required>
@@ -184,11 +204,12 @@
             </form>
         </div>
 
-        <div class="content-section" id="settings" style="display: none;">
+    <div class="content-section hidden" id="settings">
             <h2>Settings</h2>
             <div class="settings-card" id="settingsCard">
                 <span class="close-settings" onclick="closeSettingsCard()">×</span>
                 <h3>Theme</h3>
+                <label for="themeSelect" class="hidden">Theme</label>
                 <select id="themeSelect">
                     <option value="system">System Default</option>
                     <option value="light">Light</option>
@@ -208,10 +229,10 @@
     <footer>
         <p>© 2025 BoxDome. All rights reserved.</p>
         <div class="social-links">
-            <a href="#"><i class="fab fa-facebook-f"></i></a>
-            <a href="https://x.com/BobbyDevara_1"><i class="fab fa-twitter"></i></a>
-            <a href="https://www.instagram.com/bobby_devarapu/"><i class="fab fa-instagram"></i></a>
-            <a href="https://www.linkedin.com/in/bobby-devarapu-43874a2ab/"><i class="fab fa-linkedin-in"></i></a>
+            <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f" aria-hidden="true"></i></a>
+            <a href="https://x.com/BobbyDevara_1" aria-label="Twitter" target="_blank" rel="noopener"><i class="fab fa-twitter" aria-hidden="true"></i></a>
+            <a href="https://www.instagram.com/bobby_devarapu/" aria-label="Instagram" target="_blank" rel="noopener"><i class="fab fa-instagram" aria-hidden="true"></i></a>
+            <a href="https://www.linkedin.com/in/bobby-devarapu-43874a2ab/" aria-label="LinkedIn" target="_blank" rel="noopener"><i class="fab fa-linkedin-in" aria-hidden="true"></i></a>
         </div>
     </footer>
 

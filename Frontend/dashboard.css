@@ -6,86 +6,33 @@
 }
 
 body {
-    background: linear-gradient(135deg, #1a1a1a, #2c3e50);
-    color: #fff;
+    /* Rich dashboard background: deep navy base + layered radial highlights and soft vignette */
+    background-color: #05060a; /* fallback */
+    background-image:
+        radial-gradient(1200px 600px at 10% 10%, rgba(19,40,62,0.55), transparent 12%),
+        radial-gradient(900px 500px at 90% 80%, rgba(10,20,34,0.45), transparent 10%),
+        linear-gradient(180deg, rgba(5,8,12,1) 0%, rgba(11,24,36,1) 40%, rgba(19,29,42,1) 100%),
+        linear-gradient(135deg, #08101a, #122233);
+    background-blend-mode: overlay, overlay, normal, normal;
+    color: #e6eef8;
     font-size: 16px;
-    transition: all 0.3s ease;
+    transition: background 0.45s ease, color 0.25s ease;
+    min-height: 100vh;
+    overflow-x: hidden;
+    /* subtle vignette */
+    box-shadow: inset 0 120px 180px rgba(0,0,0,0.45);
 }
 
-body.light-theme {
-    background: linear-gradient(135deg, #f0f0f0, #d9e6f2);
-    color: #333;
+/* Slightly brighter, card-friendly surface color used across dashboard */
+:root {
+    --card-bg: rgba(255,255,255,0.03);
+    --card-border: rgba(255,255,255,0.04);
+    --muted: rgba(230,238,248,0.55);
+    --accent-1: #00ddeb;
+    --accent-2: #6b33ff;
 }
 
-body.light-theme .sidebar {
-    background: #fff;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-}
-
-body.light-theme .sidebar-content button {
-    color: #333;
-}
-
-body.light-theme .sidebar-content button:hover {
-    background: #e0e0e0;
-}
-
-body.light-theme .movie-card {
-    background: rgba(0, 0, 0, 0.05);
-}
-
-body.light-theme .movie-card h3,
-body.light-theme .movie-card .subtitle,
-body.light-theme .movie-card .info span {
-    color: #333;
-}
-
-body.light-theme .content-section h2 {
-    color: #333;
-}
-
-body.light-theme .content-section p {
-    color: #555;
-}
-
-body.light-theme .search-bar input {
-    background: rgba(0, 0, 0, 0.1);
-    color: #333;
-}
-
-body.light-theme .search-bar input::placeholder {
-    color: #666;
-}
-
-body.light-theme footer {
-    background: #fff;
-    color: #333;
-}
-
-body.light-theme footer a {
-    color: #333;
-}
-
-body.light-theme .settings-card {
-    background: rgba(0, 0, 0, 0.05);
-}
-
-body.light-theme .settings-card h3 {
-    color: #333;
-}
-
-body.light-theme .settings-card select,
-body.light-theme .settings-card span {
-    color: #333;
-}
-
-body.light-theme .user-info h4 {
-    color: #333;
-}
-
-body.light-theme .sidebar-header h3 {
-    color: #333;
-}
+/* Removed explicit light-theme overrides so dashboard uses the system default appearance. */
 
 .alert {
     position: fixed;
@@ -140,24 +87,44 @@ header {
     to { transform: translateY(0); }
 }
 
-.logo {
-    font-size: 1.8rem;
+/* Old .logo styles suppressed on dashboard in favor of a compact brand */
+.logo { display: none; }
+
+/* Compact brand used in dashboard header */
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.brand-icon svg { display: block; }
+.brand-text {
+    font-size: 1rem;
     font-weight: 600;
-    background: linear-gradient(45deg, #00ddeb, #ff3366);
+    color: #fff;
+    letter-spacing: 0.4px;
+}
+
+/* Gradient brand name similar to the provided design */
+.brand-name {
+    font-weight: 700;
+    font-size: 1.05rem;
+    background: linear-gradient(90deg, #00ddeb 0%, #6b33ff 60%, #ff3366 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
-    transition: transform 0.3s ease;
+    display: inline-block;
+    vertical-align: middle;
+}
+.brand-sub {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    margin-left: 2px;
 }
 
-.logo-animate {
-    position: relative;
-    animation: glowPulse 2s infinite ease-in-out;
-}
-
-.logo-animate:hover {
-    transform: scale(1.1) rotate(5deg);
-    text-shadow: 0 0 20px rgba(0, 221, 235, 0.8), 0 0 40px rgba(255, 51, 102, 0.8);
-}
+/* Utility class for JS-controlled hidden sections (replaces inline style) */
+.hidden { display: none !important; }
 
 @keyframes glowPulse {
     0% { text-shadow: 0 0 5px rgba(0, 221, 235, 0.5), 0 0 10px rgba(255, 51, 102, 0.5); }
@@ -436,9 +403,17 @@ header {
 .content-section h2 {
     font-size: 1.8rem;
     margin-bottom: 20px;
-    background: linear-gradient(45deg, #00ddeb, #ff3366);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    /* Default color: will be adjusted for light/dark via media queries */
+    color: var(--muted);
+}
+
+/* System dark mode: ensure headings are bright */
+@media (prefers-color-scheme: dark) {
+    .content-section h2 { color: #fff; }
+}
+
+@media (prefers-color-scheme: light) {
+    .content-section h2 { color: #0a0a0a; }
 }
 
 .content-section p {
@@ -452,11 +427,13 @@ header {
     max-width: 500px;
     margin: 0 auto;
     padding: 20px;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
     border-radius: 15px;
     animation: popInCard 0.5s ease-out;
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    box-shadow: 0 6px 30px rgba(0,0,0,0.6);
 }
 
 @keyframes popInCard {
